@@ -8,43 +8,41 @@ import SamplingPage from './pages/QC/SamplingPage';
 import QCDetail from './pages/QC/QCDetail';
 import StaffConfirmation from './pages/QC/StaffConfirmation';
 import DisputeResolution from './pages/QC/DisputeResolution';
+import TeamManagement from './pages/System/TeamManagement';
+import DevPlanPage from './pages/DevelopmentPlan/DevPlanPage';
+import LeaderLogPage from './pages/LeaderLog/LeaderLogPage';
+
+// ... (previous imports)
+
+import { useAppStore } from './store/useAppStore';
 
 function App() {
-  const [currentView, setCurrentView] = useState('dashboard');
+  const { currentView, setView } = useAppStore();
 
   const renderContent = () => {
     switch (currentView) {
       case 'dashboard':
         return <Dashboard />;
       case 'qc':
+      case 'my-qc-action':
         return <SamplingPage />;
       case 'qc-detail':
         return <QCDetail />;
-      case 'staff-confirm':
-        return <StaffConfirmation />;
-      case 'dispute':
-        return <DisputeResolution />;
+      // case 'staff-confirm': // Merged into QC Module/Inbox logic
+      //   return <StaffConfirmation />;
+      // case 'dispute':
+      //   return <DisputeResolution />;
       case 'team':
-        return (
-          <div className="p-8 text-center">
-            <h2 className="text-2xl font-bold text-gray-700 mb-4">Team Management</h2>
-            <p className="text-gray-500">This module is under development.</p>
-          </div>
-        );
+      case 'team-structure':
+        return <TeamManagement initialTab="structure" />;
+      case 'access-mgmt':
+        return <TeamManagement initialTab="access" />;
+      case 'sampling-rules':
+        return <TeamManagement initialTab="rules" />;
       case 'dev-plan':
-        return (
-          <div className="p-8 text-center">
-            <h2 className="text-2xl font-bold text-gray-700 mb-4">Development Plan</h2>
-            <p className="text-gray-500">This module is under development.</p>
-          </div>
-        );
+        return <DevPlanPage />;
       case 'leader-log':
-        return (
-          <div className="p-8 text-center">
-            <h2 className="text-2xl font-bold text-gray-700 mb-4">Leader Log</h2>
-            <p className="text-gray-500">This module is under development.</p>
-          </div>
-        );
+        return <LeaderLogPage />;
       default:
         return <Dashboard />;
     }
@@ -61,12 +59,12 @@ function App() {
         },
         components: {
           Layout: {
-            siderBg: '#001529', // Revert to standard dark
+            siderBg: '#001529',
           }
         }
       }}
     >
-      <MainLayout currentView={currentView} onNavigate={setCurrentView}>
+      <MainLayout currentView={currentView} onNavigate={setView}>
         {renderContent()}
       </MainLayout>
     </ConfigProvider>

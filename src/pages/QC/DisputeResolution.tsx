@@ -1,30 +1,63 @@
 import React, { useState } from 'react';
-import { Card, Row, Col, Typography, Descriptions, Divider, Form, Radio, Input, Button, message, Alert } from 'antd';
-import { ArrowLeftOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Typography, Descriptions, Divider, Form, Radio, Input, Button, message, Alert, Table, InputNumber, Tag } from 'antd';
+import { ArrowLeftOutlined, CheckCircleOutlined, EyeOutlined } from '@ant-design/icons';
+import { useAppStore } from '../../store/useAppStore';
+import type { QCRecord } from '../../store/useAppStore';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const DisputeResolution: React.FC = () => {
+    const { qcRecords, updateQCRecord } = useAppStore();
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
+    const [selectedRecord, setSelectedRecord] = useState<QCRecord | null>(null);
+
+    const disputedRecords = qcRecords.filter(r => r.status === 'Dispute');
 
     const handleFinish = (values: any) => {
+        if (!selectedRecord) return;
         setLoading(true);
-        console.log('Dispute Resolution:', values);
         setTimeout(() => {
+            updateQCRecord(selectedRecord.id, {
+                status: 'Wait Staff Confirm', // Send back to staff
+                score: values.decision === 'revise' ? values.newScore : selectedRecord.score,
+                m1Comments: values.comments // M1 updates comments
+            });
             setLoading(false);
-            message.success('Dispute resolved successfully');
+            setSelectedRecord(null);
+            message.success('Dispute resolved. Sent back to staff for confirmation.');
         }, 1000);
     };
+
+    const columns = [
+        { title: 'Case ID', dataIndex: 'caseId', key: 'caseId' },
+        { title: 'Agent', dataIndex: 'agentName', key: 'agentName' },
+        { title: 'Dispute Reason', dataIndex: 'disputeReason', key: 'reason', ellipsis: true },
+        {
+            title: 'Action',
+            key: 'action',
+            render: (_: any, record: QCRecord) => (
+                <Button icon={<EyeOutlined />} onClick={() => setSelectedRecord(record)}>Resolve</Button>
+            )
+        }
+    ];
+
+    if (!selectedRecord) {
+        return (
+            <Card title={`Disputed Cases (${disputedRecords.length})`} bordered={false} className="shadow-sm">
+                <Table dataSource={disputedRecords} columns={columns} rowKey="id" locale={{ emptyText: "No disputed cases found." }} />
+            </Card>
+        );
+    }
 
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4 mb-4">
-                <Button icon={<ArrowLeftOutlined />} type="text" />
+                <Button icon={<ArrowLeftOutlined />} onClick={() => setSelectedRecord(null)} />
                 <div>
-                    <Title level={4} className="!mb-0">Dispute Resolution: CS-2023001</Title>
-                    <Text type="secondary">Reviewing dispute from Agent: Alice Smith</Text>
+                    <Title level={4} className="!mb-0">Dispute Resolution: {selectedRecord.caseId}</Title>
+                    <Text type="secondary">Reviewing dispute from Agent: {selectedRecord.agentName}</Text>
                 </div>
             </div>
 
@@ -33,28 +66,21 @@ const DisputeResolution: React.FC = () => {
                     <Card title="Original Evaluation & Dispute" bordered={false} className="shadow-sm h-full">
                         <Descriptions column={1} bordered size="small">
                             <Descriptions.Item label="Original Score">
-                                <Text type="danger" strong>75 / 100</Text>
+                                <Text type={selectedRecord.score! < 80 ? 'danger' : 'success'} strong>{selectedRecord.score} / 100</Text>
                             </Descriptions.Item>
                             <Descriptions.Item label="QC Comments">
-                                The agent failed to verify the customer's identity before discussing account details.
+                                {selectedRecord.m1Comments}
                             </Descriptions.Item>
                         </Descriptions>
 
                         <Divider>Agent's Dispute</Divider>
                         <Alert
                             message="Dispute Reason"
-                            description="I actually did verify the customer's identity at the very beginning of the call, but the recording might have cut off the first few seconds. Please check the system logs."
+                            description={selectedRecord.disputeReason}
                             type="warning"
                             showIcon
                             className="mb-4"
                         />
-
-                        <div className="bg-gray-50 p-4 rounded text-sm font-mono h-48 overflow-y-auto border border-gray-100 mt-4">
-                            <p className="text-gray-500 italic">Transcript snippet...</p>
-                            <p><span className="text-blue-600 font-bold">Agent:</span> ...can I have your full name and PIN please?</p>
-                            <p><span className="text-green-600 font-bold">Customer:</span> John Doe, 1234.</p>
-                            <p><span className="text-blue-600 font-bold">Agent:</span> Thank you, John.</p>
-                        </div>
                     </Card>
                 </Col>
 
@@ -65,7 +91,8 @@ const DisputeResolution: React.FC = () => {
                             layout="vertical"
                             onFinish={handleFinish}
                             initialValues={{
-                                decision: 'uphold',
+                                decision: 'uphold', // default
+                                comments: selectedRecord.m1Comments // pre-fill with old comments
                             }}
                         >
                             <Form.Item
@@ -74,7 +101,7 @@ const DisputeResolution: React.FC = () => {
                                 rules={[{ required: true }]}
                             >
                                 <Radio.Group buttonStyle="solid" className="w-full">
-                                    <Radio.Button value="uphold" className="w-1/2 text-center">Uphold Original Score</Radio.Button>
+                                    <Radio.Button value="uphold" className="w-1/2 text-center">Uphold Score</Radio.Button>
                                     <Radio.Button value="revise" className="w-1/2 text-center">Revise Score</Radio.Button>
                                 </Radio.Group>
                             </Form.Item>
@@ -90,7 +117,7 @@ const DisputeResolution: React.FC = () => {
                                             label="New Score"
                                             rules={[{ required: true, message: 'Please enter new score' }]}
                                         >
-                                            <Input type="number" min={0} max={100} />
+                                            <InputNumber min={0} max={100} className="w-full" />
                                         </Form.Item>
                                     ) : null
                                 }
@@ -98,15 +125,15 @@ const DisputeResolution: React.FC = () => {
 
                             <Form.Item
                                 name="comments"
-                                label="Resolution Comments"
+                                label="Resolution Comments (Updated)"
                                 rules={[{ required: true, message: 'Please provide explanation' }]}
                             >
-                                <TextArea rows={6} placeholder="Explain your decision..." />
+                                <TextArea rows={6} placeholder="Update comments for the agent..." />
                             </Form.Item>
 
                             <Form.Item>
                                 <Button type="primary" htmlType="submit" loading={loading} block icon={<CheckCircleOutlined />}>
-                                    Submit Resolution
+                                    Submit Resolution & Return to Staff
                                 </Button>
                             </Form.Item>
                         </Form>

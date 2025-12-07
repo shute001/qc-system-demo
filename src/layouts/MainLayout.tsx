@@ -30,6 +30,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, currentView, onNaviga
     const roleColors: Record<Role, string> = {
         Admin: 'red',
         M1: 'orange',
+        M2: 'purple',
         Staff: 'green',
     };
 
@@ -38,43 +39,54 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, currentView, onNaviga
             key: 'dashboard',
             icon: <DashboardOutlined />,
             label: 'Dashboard',
-            roles: ['Admin', 'M1', 'Staff'],
+            roles: ['Admin', 'M1', 'M2', 'Staff'],
         },
         {
             key: 'qc-module',
             icon: <FileProtectOutlined />,
             label: 'QC Module',
-            roles: ['M1', 'Staff'],
+            roles: ['M1', 'M2', 'Staff'],
             children: [
-                { key: 'qc', label: 'Sampling (Step 1)' },
-                { key: 'qc-detail', label: 'Evaluation (Step 2)' },
-                { key: 'staff-confirm', label: 'Staff Confirm (Step 3)' },
-                { key: 'dispute', label: 'Dispute Resolution (Step 4)' },
+                { key: 'qc', label: 'Sampling / QC Check', roles: ['M1', 'M2'] },
+                { key: 'my-qc-action', label: 'My QC Action', roles: ['Staff'] },
             ]
         },
         {
             key: 'team',
             icon: <TeamOutlined />,
-            label: 'Team Management',
-            roles: ['Admin'],
+            label: 'System Management',
+            roles: ['Admin', 'M1', 'M2'],
+            children: [
+                { key: 'team-structure', label: 'Team Structure' },
+                { key: 'access-mgmt', label: 'Access Management' },
+                { key: 'sampling-rules', label: 'Sampling Rules' },
+            ]
         },
         {
             key: 'dev-plan',
             icon: <ScheduleOutlined />,
             label: 'Development Plan',
-            roles: ['M1', 'Staff'],
+            roles: ['M1', 'M2', 'Staff'],
         },
         {
             key: 'leader-log',
             icon: <BookOutlined />,
             label: 'Leader Log',
-            roles: ['M1'],
+            roles: ['M1', 'M2'],
         },
     ];
 
-    const filteredMenuItems = menuItems.filter((item) =>
-        item.roles.includes(currentUser.role)
-    );
+    // Recursive filter function
+    const filterMenu = (items: any[]): any[] => {
+        return items
+            .filter(item => !item.roles || item.roles.includes(currentUser.role))
+            .map(item => ({
+                ...item,
+                children: item.children ? filterMenu(item.children) : undefined
+            }));
+    };
+
+    const filteredMenuItems = filterMenu(menuItems);
 
     const userMenu = {
         items: [
@@ -83,8 +95,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, currentView, onNaviga
                 label: (
                     <div className="flex flex-col gap-1 p-1">
                         <Text strong>Switch Role (Demo)</Text>
-                        <div className="flex gap-2">
-                            {(['Admin', 'M1', 'Staff'] as Role[]).map((r) => (
+                        <div className="flex gap-2 flex-wrap">
+                            {(['Admin', 'M1', 'M2', 'Staff'] as Role[]).map((r) => (
                                 <Tag
                                     key={r}
                                     color={roleColors[r]}
