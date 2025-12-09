@@ -12,13 +12,20 @@ interface TeamManagementProps {
 }
 
 const TeamManagement: React.FC<TeamManagementProps> = ({ initialTab = 'structure' }) => {
-    const { staffList } = useAppStore();
-    const [activeTab, setActiveTab] = useState(initialTab);
+    const { staffList, setView } = useAppStore();
 
-    // Sync tab if prop changes (optional, but good for navigation)
-    React.useEffect(() => {
-        setActiveTab(initialTab);
-    }, [initialTab]);
+    // -- Tab Sync Logic --
+    const handleTabChange = (key: string) => {
+        const viewMap: Record<string, string> = {
+            'structure': 'team-structure',
+            'access': 'access-mgmt',
+            'rules': 'sampling-rules',
+        };
+        const targetView = viewMap[key];
+        if (targetView) {
+            setView(targetView);
+        }
+    };
 
     // -- Tab 1: Team Structure --
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -102,7 +109,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ initialTab = 'structure
     return (
         <div className="space-y-6">
             <Card bordered={false} className="shadow-sm">
-                <Tabs activeKey={activeTab} onChange={setActiveTab}>
+                <Tabs activeKey={initialTab} onChange={handleTabChange}>
 
                     <TabPane tab={<span><UserOutlined />Team Structure</span>} key="structure">
                         <div className="mb-4 flex justify-between">

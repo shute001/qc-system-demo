@@ -239,9 +239,29 @@ const SamplingPage: React.FC<SamplingPageProps> = ({ initialTab }) => {
         }] : [])
     ];
 
+    // -- Sync Tab with Sidebar --
+    const handleTabChange = (key: string) => {
+        const viewMap: Record<string, string> = {
+            'sampling': 'qc-sampling',
+            'inbox': 'qc-inbox',
+            'drafts': 'qc-drafts',
+            'outbox': 'qc-outbox',
+            'dispute': 'qc-dispute',
+            'history': 'qc-history',
+            'my-tasks': 'my-qc-action'
+        };
+        const targetView = viewMap[key];
+        if (targetView) {
+            setView(targetView);
+        }
+    };
+
+    // Determine active tab: prefer prop (controlled), fallback to role default
+    const activeKey = initialTab || (currentUser.role === 'Staff' ? 'my-tasks' : 'inbox');
+
     return (
         <Card bordered={false} className="shadow-sm">
-            <Tabs defaultActiveKey={defaultKey} items={items} />
+            <Tabs activeKey={activeKey} items={items} onChange={handleTabChange} />
         </Card>
     );
 };
