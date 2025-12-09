@@ -3,7 +3,8 @@ import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import 'dayjs/locale/zh-cn';
 import MainLayout from './layouts/MainLayout';
-import Dashboard from './pages/Dashboard';
+import Workspace from './pages/Workspace';
+import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import SamplingPage from './pages/QC/SamplingPage';
 import QCDetail from './pages/QC/QCDetail';
 import StaffConfirmation from './pages/QC/StaffConfirmation';
@@ -21,8 +22,12 @@ function App() {
 
   const renderContent = () => {
     switch (currentView) {
+      case 'workspace':
+        return <Workspace />;
+      case 'analytics':
+        return <AnalyticsDashboard />;
       case 'dashboard':
-        return <Dashboard />;
+        return <Workspace />;
       case 'qc':
       case 'qc-sampling':
         return <SamplingPage initialTab="sampling" />;
@@ -57,7 +62,7 @@ function App() {
       case 'leader-log':
         return <LeaderLogPage />;
       default:
-        return <Dashboard />;
+        return <Workspace />;
     }
   };
 

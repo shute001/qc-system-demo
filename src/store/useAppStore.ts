@@ -147,7 +147,7 @@ export const useAppStore = create<AppState>((set) => ({
     updateSamplingRules: (rules) => set({ samplingRules: rules }),
     addStaff: (user) => set((state) => ({ staffList: [...state.staffList, user] })),
 
-    currentView: 'dashboard',
+    currentView: 'workspace',
     activeQCRecordId: null,
     setView: (view) => set({ currentView: view }),
     setActiveQCRecord: (id) => set({ activeQCRecordId: id }),

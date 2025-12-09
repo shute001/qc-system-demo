@@ -3,7 +3,8 @@ import { Layout, Menu, Button, Avatar, Dropdown, Tag, Typography } from 'antd';
 import {
     MenuFoldOutlined,
     MenuUnfoldOutlined,
-    DashboardOutlined,
+    HomeOutlined,
+    BarChartOutlined,
     FileProtectOutlined,
     TeamOutlined,
     ScheduleOutlined,
@@ -36,10 +37,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, currentView, onNaviga
 
     const menuItems = [
         {
-            key: 'dashboard',
-            icon: <DashboardOutlined />,
-            label: 'Dashboard',
-            roles: ['Admin', 'M1', 'M2', 'Staff'],
+            key: 'workspace',
+            icon: <HomeOutlined />,
+            label: 'My Workspace',
+            roles: ['M1', 'M2', 'Staff'],
+        },
+        {
+            key: 'analytics',
+            icon: <BarChartOutlined />,
+            label: 'Analytics Dashboard',
+            roles: ['M1', 'M2'],
         },
         {
             key: 'qc-module',

@@ -24,15 +24,15 @@ const dataStatus = [
 
 const COLORS = ['#52c41a', '#f5222d', '#faad14'];
 
-const Dashboard: React.FC = () => {
+const AnalyticsDashboard: React.FC = () => {
     const { currentUser } = useAppStore();
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <Title level={2} className="!mb-0">Welcome back, {currentUser.name}</Title>
-                    <p className="text-gray-500">Here's what's happening in your department today.</p>
+                    <Title level={2} className="!mb-0">Analytics Overview</Title>
+                    <p className="text-gray-500">Performance metrics and quality trends.</p>
                 </div>
                 <div className="text-right">
                     <p className="text-sm text-gray-500">Last updated: Just now</p>
@@ -141,4 +141,4 @@ const Dashboard: React.FC = () => {
     );
 };
 
-export default Dashboard;
+export default AnalyticsDashboard;
