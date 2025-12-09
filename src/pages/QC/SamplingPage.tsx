@@ -26,10 +26,22 @@ const mockSourceData: QCSourceData[] = Array.from({ length: 20 }).map((_, i) => 
     status: 'Ready for QC',
 }));
 
-const SamplingPage: React.FC = () => {
+interface SamplingPageProps {
+    initialTab?: string;
+}
+
+const SamplingPage: React.FC<SamplingPageProps> = ({ initialTab }) => {
     const { qcRecords, addQCRecord, currentUser, setActiveQCRecord, setView, samplingRules } = useAppStore();
     const [loading, setLoading] = useState(false);
     const [selectedSourceKeys, setSelectedSourceKeys] = useState<React.Key[]>([]);
+
+    // If initialTab is provided, use it. Otherwise default based on role.
+    // Note: Tabs component from Antd is controlled if activeKey is passed, or uncontrolled if defaultActiveKey is passed.
+    // Since we rely on routing to switch tabs now, using defaultActiveKey with a key prop on the component 
+    // (in App.tsx) works best to force re-render, OR we can use State.
+    // Let's use a key in App.tsx to reset the component instance when switching views, 
+    // effectively making defaultActiveKey work. This is the simplest approach for now.
+    const defaultKey = initialTab || (currentUser.role === 'Staff' ? 'my-tasks' : 'inbox');
 
     const isManager = ['Admin', 'M1', 'M2'].includes(currentUser.role);
     const isStaff = currentUser.role === 'Staff';
@@ -229,7 +241,7 @@ const SamplingPage: React.FC = () => {
 
     return (
         <Card bordered={false} className="shadow-sm">
-            <Tabs defaultActiveKey={isStaff ? 'my-tasks' : 'inbox'} items={items} />
+            <Tabs defaultActiveKey={defaultKey} items={items} />
         </Card>
     );
 };

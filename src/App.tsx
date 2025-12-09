@@ -24,8 +24,21 @@ function App() {
       case 'dashboard':
         return <Dashboard />;
       case 'qc':
+      case 'qc-sampling':
+        return <SamplingPage initialTab="sampling" key="sampling" />;
+      case 'qc-inbox':
+        return <SamplingPage initialTab="inbox" key="inbox" />;
+      case 'qc-drafts':
+        return <SamplingPage initialTab="drafts" key="drafts" />;
+      case 'qc-outbox':
+        return <SamplingPage initialTab="outbox" key="outbox" />;
+      case 'qc-dispute':
+        return <SamplingPage initialTab="dispute" key="dispute" />;
+      case 'qc-history':
+        return <SamplingPage initialTab="history" key="history" />;
+
       case 'my-qc-action':
-        return <SamplingPage />;
+        return <SamplingPage initialTab="my-tasks" key="staff" />;
       case 'qc-detail':
         return <QCDetail />;
       // case 'staff-confirm': // Merged into QC Module/Inbox logic

@@ -47,7 +47,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, currentView, onNaviga
             label: 'QC Module',
             roles: ['M1', 'M2', 'Staff'],
             children: [
-                { key: 'qc', label: 'Sampling / QC Check', roles: ['M1', 'M2'] },
+                { key: 'qc-sampling', label: 'Sampling', roles: ['M1', 'M2'] },
+                { key: 'qc-inbox', label: 'Inbox (To QC)', roles: ['M1', 'M2'] },
+                { key: 'qc-drafts', label: 'Draft Box', roles: ['M1', 'M2'] },
+                { key: 'qc-outbox', label: 'Outbox (Wait Confirm)', roles: ['M1', 'M2'] },
+                { key: 'qc-dispute', label: 'Dispute Box', roles: ['M1', 'M2'] },
+                { key: 'qc-history', label: 'History (Completed)', roles: ['M1', 'M2'] },
+
                 { key: 'my-qc-action', label: 'My QC Action', roles: ['Staff'] },
             ]
         },
