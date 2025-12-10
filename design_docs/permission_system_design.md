@@ -1,298 +1,835 @@
 # Permission & Menu Control System Design Document
 
+**Version**: 2.0 (Updated based on actual implementation)  
+**Last Updated**: 2025-12-11
+
 ## 1. Overview
-This document details the design for the Permission and Menu Control module for the Quality Control (QC) System.
-**Goal**: Replace the current hardcoded frontend role logic with a dynamic, database-driven Role-Based Access Control (RBAC) system.
+
+This document provides a **complete** specification for the Permission and Menu Control module of the Quality Control (QC) System. It is designed to guide developers through implementing a database-driven Role-Based Access Control (RBAC) system.
+
+**System Capabilities**:
+- ✅ Dynamic menu rendering based on user roles
+- ✅ Hierarchical menu structure (unlimited depth)
+- ✅ Role-based access control
+- ✅ Efficient tree-building algorithm (O(n))
+- ✅ Clean API separation (Auth vs Menu)
 
 **Tech Stack**:
-- **Frontend**: React.js (with Ant Design)
-- **Backend**: Java Spring Boot
+- **Frontend**: React.js + TypeScript + Ant Design
+- **Backend**: Java Spring Boot + JPA
 - **Database**: PostgreSQL
+- **Architecture**: RESTful API with JWT authentication
 
 ---
 
-## 2. Database Design (PostgreSQL)
+## 2. Database Schema
 
-We will use a standard RBAC model with five core tables.
+### 2.1 Entity Relationship Diagram
 
-### 2.1 ER Diagram Concept
-`sys_user` >--< `sys_user_role` >-- `sys_role` >-- `sys_role_menu` >-- `sys_menu`
+```mermaid
+erDiagram
+    SYS_USER ||--o{ SYS_USER_ROLE : has
+    SYS_ROLE ||--o{ SYS_USER_ROLE : has
+    SYS_ROLE ||--o{ SYS_ROLE_MENU : has
+    SYS_MENU ||--o{ SYS_ROLE_MENU : has
+    SYS_MENU ||--o{ SYS_MENU : "parent_id"
+```
 
 ### 2.2 Table Definitions
 
-#### `sys_user` (Users)
-Stores user account information.
-| Field | Type | Description |
-|---|---|---|
-| `user_id` | BIGINT (PK) | Unique ID |
-| `username` | VARCHAR(50) | Login username |
-| `password` | VARCHAR(100) | Encrypted password |
-| `real_name` | VARCHAR(100) | Display name |
-| `email` | VARCHAR(100) | Email address |
-| `avatar` | VARCHAR(255) | URL to avatar image |
-| `status` | INT | 1: Enabled, 0: Disabled |
-| `dept_id` | BIGINT | Department ID |
-| `manager_id` | BIGINT | Line Manager ID |
+#### `sys_user` - User Accounts
 
-#### `sys_role` (Roles)
-Stores role definitions (e.g., Admin, M1, M2, Staff).
-| Field | Type | Description |
-|---|---|---|
-| `role_id` | BIGINT (PK) | Unique ID |
-| `role_name` | VARCHAR(50) | Role Name (e.g., "Manager L1") |
-| `role_key` | VARCHAR(50) | Code (e.g., "M1", "admin") |
-| `status` | INT | 1: Enabled, 0: Disabled |
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `user_id` | BIGSERIAL | PRIMARY KEY | Auto-increment user ID |
+| `username` | VARCHAR(50) | UNIQUE, NOT NULL | Login username |
+| `password` | VARCHAR(100) | NOT NULL | BCrypt hashed password |
+| `real_name` | VARCHAR(100) | | Display name |
+| `email` | VARCHAR(100) | | Email address |
+| `avatar` | VARCHAR(255) | | Avatar URL |
+| `status` | INTEGER | DEFAULT 1 | 1=Active, 0=Disabled |
+| `dept_id` | BIGINT | | Department ID |
+| `manager_id` | BIGINT | FK to user_id | Line manager reference |
+| `created_at` | TIMESTAMP | DEFAULT now() | Creation timestamp |
+| `updated_at` | TIMESTAMP | DEFAULT now() | Last update timestamp |
 
-#### `sys_menu` (Menus & Permissions)
-Stores the tree structure of menus and specific permission buttons.
-| Field | Type | Description |
-|---|---|---|
-| `menu_id` | BIGINT (PK) | Unique ID |
-| `menu_name` | VARCHAR(50) | Menu Label (e.g., "Dashboard") |
-| `parent_id` | BIGINT | Parent Menu ID (0 for root) |
-| `order_num` | INT | Sort Order |
-| `path` | VARCHAR(255) | Frontend Route Path (e.g., "/qc/sampling") |
-| `component` | VARCHAR(255) | React Component Path |
-| `menu_type` | CHAR(1) | 'M': Directory, 'C': Menu Item, 'F': Button/Action |
-| `perms` | VARCHAR(100) | Permission identifier (e.g., "qc:sampling:list") |
-| `icon` | VARCHAR(100) | Icon Name (e.g., "DashboardOutlined") |
-| `visible` | INT | 0: Hidden, 1: Visible |
+#### `sys_role` - Roles
 
-#### `sys_user_role` (User-Role Association)
-| Field | Type | Description |
-|---|---|---|
-| `user_id` | BIGINT (PK) | FK to sys_user |
-| `role_id` | BIGINT (PK) | FK to sys_role |
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `role_id` | BIGSERIAL | PRIMARY KEY | Auto-increment role ID |
+| `role_name` | VARCHAR(50) | NOT NULL | Display name (e.g., "Administrator") |
+| `role_key` | VARCHAR(50) | UNIQUE, NOT NULL | Role identifier (e.g., "admin", "manager", "staff") |
+| `status` | INTEGER | DEFAULT 1 | 1=Active, 0=Disabled |
+| `created_at` | TIMESTAMP | DEFAULT now() | Creation timestamp |
 
-#### `sys_role_menu` (Role-Menu Association)
-| Field | Type | Description |
-|---|---|---|
-| `role_id` | BIGINT (PK) | FK to sys_role |
-| `menu_id` | BIGINT (PK) | FK to sys_menu |
+**Important**: When serializing to JSON, the `menus` relationship should use `@JsonIgnore` to avoid data duplication with dedicated menu API.
 
----
-### 2.3 Example Data
+#### `sys_menu` - Menus & Permissions
 
-To illustrate the system, here are example records for a **Staff** (Alice) and a **Manager** (Bob), and the corresponding permission setup.
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `menu_id` | BIGSERIAL | PRIMARY KEY | Auto-increment menu ID |
+| `menu_name` | VARCHAR(50) | NOT NULL | Menu label (e.g., "Dashboard") |
+| `parent_id` | BIGINT | DEFAULT 0 | Parent menu ID (0 = root level) |
+| `order_num` | INTEGER | DEFAULT 0 | Display order (ascending) |
+| `path` | VARCHAR(255) | | Frontend route path |
+| `component` | VARCHAR(255) | | React component path |
+| `menu_type` | CHAR(1) | | 'M'=Directory, 'C'=Menu, 'F'=Button |
+| `perms` | VARCHAR(100) | | Permission string (e.g., "qc:sampling:list") |
+| `icon` | VARCHAR(100) | | Ant Design icon name (e.g., "DashboardOutlined") |
+| `visible` | INTEGER | DEFAULT 1 | 1=Visible, 0=Hidden |
+| `created_at` | TIMESTAMP | DEFAULT now() | Creation timestamp |
 
-#### `sys_user` (Data)
-| user_id | username | real_name | manager_id | status |
-|---|---|---|---|---|
-| 1 | admin | System Admin | NULL | 1 |
-| 2 | bob | Bob Manager | 1 | 1 |
-| 3 | alice | Alice Staff | 2 | 1 |
+**Menu Types**:
+- **M** (Directory): Parent menu with children (e.g., "QC Module")
+- **C** (Component): Clickable menu item (e.g., "Sampling")
+- **F** (Function): Button-level permission (e.g., "Approve")
 
-#### `sys_role` (Data)
-| role_id | role_name | role_key |
-|---|---|---|
-| 1 | Administrator | admin |
-| 2 | QC Manager | manager |
-| 3 | QC Staff | staff |
+#### `sys_user_role` - User-Role Association
 
-#### `sys_menu` (Data - Simplified)
-| menu_id | menu_name | parent_id | path | menu_type | perms |
-|---|---|---|---|---|---|
-| 1 | Dashboard | 0 | /dashboard | C | `dashboard:view` |
-| 10 | QC Management | 0 | /qc | M | - |
-| 11 | Sampling | 10 | sampling | C | `qc:sampling:list` |
-| 12 | My QC Actions | 10 | my-actions | C | `qc:action:list` |
-| 13 | Dispute Resolution | 10 | dispute | C | `qc:dispute:list` |
-| 111 | Button: Assign | 11 | - | F | `qc:sampling:assign` |
-| 112 | Button: Verify | 11 | - | F | `qc:sampling:verify` |
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `user_id` | BIGINT | PRIMARY KEY, FK | References sys_user |
+| `role_id` | BIGINT | PRIMARY KEY, FK | References sys_role |
 
-#### `sys_user_role` (Data)
-| user_id | role_id |
-|---|---|
-| 1 (Admin) | 1 (Admin) |
-| 2 (Bob) | 2 (Manager) |
-| 3 (Alice) | 3 (Staff) |
+**Composite Primary Key**: (`user_id`, `role_id`)
 
-#### `sys_role_menu` (Data)
-*Defining what each role can see.*
+#### `sys_role_menu` - Role-Menu Association
 
-**Role: Manager (ID: 2)**
-- Can see Dashboard (1)
-- Can see QC Management (10)
-- Can see Sampling (11) + Assign (111) + Verify (112)
-- Can see My Actions (12)
-- Can see Dispute (13)
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `role_id` | BIGINT | PRIMARY KEY, FK | References sys_role |
+| `menu_id` | BIGINT | PRIMARY KEY, FK | References sys_menu |
 
-**Role: Staff (ID: 3)**
-- Can see Dashboard (1)
-- Can see QC Management (10)
-- Can see My Actions (12)
-- *Cannot see Sampling or Dispute*
-
-| role_id | menu_id |
-|---|---|
-| 2 | 1, 10, 11, 111, 112, 12, 13 |
-| 3 | 1, 10, 12 |
+**Composite Primary Key**: (`role_id`, `menu_id`)
 
 ---
 
-## 3. API Design (Spring Boot)
+## 3. API Specification
 
-All responses follow a standard wrapper:
+All APIs use standard REST conventions with JSON request/response bodies.
+
+### 3.1 Authentication APIs
+
+#### POST `/api/auth/login`
+
+**Purpose**: Authenticate user and obtain JWT token
+
+**Request**:
 ```json
 {
-  "code": 200,
-  "msg": "Success",
-  "data": { ... }
+  "username": "admin",
+  "password": "password123"
 }
 ```
 
-### 3.1 Authentication
-**POST** `/api/auth/login`
-- **Request**:
-  ```json
-  {
-    "username": "admin",
-    "password": "password123" // Processed by BCrypt
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "token": "eyJhGciOiJIUzUxMi...", // JWT Token
-    "expireTime": 3600
-  }
-  ```
+**Response** (200 OK):
+```json
+{
+  "token": "dummy-jwt-token-for-admin",
+  "expireTime": 3600
+}
+```
 
-### 3.2 User Info & Permissions
-**GET** `/api/user/info`
-- **Headers**: `Authorization: Bearer <token>`
-- **Description**: Returns user profile, assigned roles, and set of permission strings for button-level control.
-- **Response**:
-  ```json
-  {
-    "user": {
-      "userId": 1,
-      "username": "alice",
-      "realName": "Alice Staff",
-      "avatar": "..."
-    },
-    "roles": ["staff"],
-    "permissions": ["qc:my-action:list", "dev-plan:view"]
-  }
-  ```
-
-### 3.3 Dynamic Menu Router
-**GET** `/api/user/routers`
-- **Description**: Returns the menu tree specifically allowing the user to view. Used to generate the sidebar.
-- **Response**:
-  ```json
-  [
-    {
-      "name": "Dashboard",
-      "path": "/dashboard",
-      "icon": "DashboardOutlined",
-      "children": []
-    },
-    {
-      "name": "QC Module",
-      "path": "/qc",
-      "icon": "FileProtectOutlined",
-      "children": [
-        {
-          "name": "My QC Action",
-          "path": "my-qc-action",
-          "component": "qc/MyQCAction", // Frontend component mapping key
-          "meta": { "title": "My QC Action", "icon": "file" }
-        }
-      ]
-    }
-  ]
-  ```
-
-### 3.4 Frontend Handling: Menu vs. Routes
-A common pattern to handle both Navigation and Routing:
-
-1.  **Menu/Sidebar (Tree)**: Uses `children` nesting. This maps directly to Ant Design's `<Menu items={tree} />` structure, allowing for collapsible submenus.
-    -   *Why not flat?* A flat list would require the frontend to reconstruct the hierarchy for the UI, adding unnecessary complexity to the client.
-2.  **Router (Flat)**: The `path` field is used for Routing. The frontend typically creates a recursive function to flatten the menu tree into a list of `<Route>` components. 
-    -   *Example*: `/qc` (Layout) -> `/qc/sampling` (Page), `/qc/my-action` (Page).
-
-
----
-
-## 4. Sequence Diagrams
-
-### 4.1 Login & Sidebar Bootstrap
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant F as Frontend (React)
-    participant A as Auth API
-    participant D as DB
-
-    U->>F: Enter Username/Password
-    F->>A: POST /auth/login
-    A->>D: Validate Credentials
-    D-->>A: User Valid
-    A-->>F: Return JWT Token
-    
-    Note over F: Store Token (LocalStorage/Zustand)
-
-    F->>A: GET /user/info
-    A->>D: Query User, Roles, Permissions
-    D-->>A: Data
-    A-->>F: Return User Profile & Perm Strings
-
-    F->>A: GET /user/routers
-    A->>D: Query Menus joined by User Roles
-    D-->>A: Menu List
-    A-->>F: Return Menu Tree
-
-    Note over F: Render Sidebar & Setup Routes
-    F-->>U: Show Dashboard
+**Response** (401 Unauthorized):
+```json
+{
+  "error": "Invalid credentials"
+}
 ```
 
 ---
 
-## 5. Frontend Implementation Guide (React)
+#### GET `/api/auth/info`
 
-### 5.1 Store Update (`useAppStore.ts`)
-Replace the mocked `switchRole` logic with real async actions.
+**Purpose**: Get current user information and roles
+
+**Query Parameters**:
+- `username` (string, required): Username to lookup
+
+**Request Example**:
+```http
+GET /api/auth/info?username=admin
+```
+
+**Response** (200 OK):
+```json
+{
+  "userId": 1,
+  "username": "admin",
+  "password": "$2a$10$...",
+  "realName": "System Admin",
+  "email": null,
+  "avatar": null,
+  "status": 1,
+  "deptId": null,
+  "managerId": null,
+  "createdAt": "2025-12-10T19:49:16.495564",
+  "updatedAt": "2025-12-10T19:49:16.495564",
+  "roles": [
+    {
+      "roleId": 1,
+      "roleName": "Administrator",
+      "roleKey": "admin",
+      "status": 1,
+      "createdAt": "2025-12-10T19:49:16.495564"
+    }
+  ]
+}
+```
+
+**Key Points**:
+- ✅ Returns user basic information
+- ✅ Includes `roles` array with role details
+- ❌ **Does NOT** include menus (see dedicated menu API)
+- `password` field contains BCrypt hash (should be filtered in production)
+
+---
+
+### 3.2 Menu APIs
+
+#### GET `/api/menu/user/{username}`
+
+**Purpose**: Get hierarchical menu tree for specific user based on their roles
+
+**Path Parameters**:
+- `username` (string, required): Username to lookup
+
+**Request Example**:
+```http
+GET /api/menu/user/admin
+```
+
+**Response** (200 OK) - **Hierarchical Tree Structure**:
+```json
+[
+  {
+    "menuId": 1,
+    "menuName": "Dashboard",
+    "parentId": 0,
+    "orderNum": 1,
+    "path": "/dashboard",
+    "component": "Dashboard",
+    "menuType": "C",
+    "perms": "dashboard:view",
+    "icon": "DashboardOutlined",
+    "visible": 1,
+    "createdAt": "2025-12-10T19:49:16.495564",
+    "children": []
+  },
+  {
+    "menuId": 10,
+    "menuName": "QC Management",
+    "parentId": 0,
+    "orderNum": 3,
+    "path": "/qc-module",
+    "component": null,
+    "menuType": "M",
+    "perms": null,
+    "icon": "FileProtectOutlined",
+    "visible": 1,
+    "createdAt": "2025-12-10T19:49:16.495564",
+    "children": [
+      {
+        "menuId": 11,
+        "menuName": "Sampling",
+        "parentId": 10,
+        "orderNum": 1,
+        "path": "sampling",
+        "component": "qc/Sampling",
+        "menuType": "C",
+        "perms": "qc:sampling:list",
+        "icon": null,
+        "visible": 1,
+        "createdAt": "2025-12-10T19:49:16.495564",
+        "children": []
+      },
+      {
+        "menuId": 14,
+        "menuName": "Inbox (To QC)",
+        "parentId": 10,
+        "orderNum": 2,
+        "path": "qc-inbox",
+        "component": "qc/SamplingPage",
+        "menuType": "C",
+        "perms": "qc:inbox:list",
+        "icon": null,
+        "visible": 1,
+        "createdAt": "2025-12-10T23:08:15.704505",
+        "children": []
+      }
+    ]
+  }
+]
+```
+
+**Key Points**:
+- ✅ Returns **hierarchical tree structure** (not flat list)
+- ✅ Backend builds tree using O(n) algorithm
+- ✅ Menus already **filtered by user's roles**
+- ✅ Sorted by `order_num` (recursive)
+- ✅ Supports **unlimited depth** (2, 3, 4+ levels)
+- `children` array contains nested menus
+
+**Backend Logic**:
+1. Get user's role IDs from `sys_user_role`
+2. Query menus assigned to those roles from `sys_role_menu`
+3. Build hierarchical tree from flat list
+4. Sort recursively by `order_num`
+5. Return tree structure
+
+---
+
+#### GET `/api/menu/list`
+
+**Purpose**: Get all menus (admin only, for management)
+
+**Response** (200 OK):
+```json
+[
+  {
+    "menuId": 1,
+    "menuName": "Dashboard",
+    "parentId": 0,
+    ...
+  }
+]
+```
+
+**Note**: Returns flat list, not tree structure
+
+---
+
+## 4. Menu Configuration Guide
+
+### 4.1 Adding New Menus
+
+**Step 1**: Insert menu record
+```sql
+INSERT INTO sys_menu (
+    menu_name, parent_id, order_num, path, 
+    component, menu_type, perms, icon, visible
+) VALUES (
+    'New Feature',  -- menu_name
+    0,              -- parent_id (0 = root level)
+    7,              -- order_num (display order)
+    '/new-feature', -- path (frontend route)
+    'NewFeature',   -- component (React component)
+    'C',            -- menu_type (C = menu item)
+    'feature:view', -- perms (permission string)
+    'StarOutlined', -- icon (Ant Design icon name)
+    1               -- visible (1 = visible)
+);
+```
+
+**Step 2**: Assign to roles
+```sql
+-- Assign to admin role (role_id = 1)
+INSERT INTO sys_role_menu (role_id, menu_id) 
+VALUES (1, <new_menu_id>);
+
+-- Assign to manager role (role_id = 2)
+INSERT INTO sys_role_menu (role_id, menu_id) 
+VALUES (2, <new_menu_id>);
+```
+
+### 4.2 Creating Multi-Level Menus
+
+**Example**: Add 3-level menu structure
+
+```sql
+-- Level 1: Parent directory
+INSERT INTO sys_menu (menu_name, parent_id, order_num, path, menu_type, icon, visible)
+VALUES ('System Settings', 0, 10, '/settings', 'M', 'SettingOutlined', 1)
+RETURNING menu_id; -- Returns: 100
+
+-- Level 2: Sub-category
+INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, menu_type, visible)
+VALUES ('User Management', 100, 1, 'users', 'settings/UserManagement', 'C', 1)
+RETURNING menu_id; -- Returns: 101
+
+-- Level 3: Specific features
+INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, menu_type, perms, visible)
+VALUES ('User List', 101, 1, 'list', 'settings/users/UserList', 'C', 'user:list', 1);
+
+INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, menu_type, perms, visible)
+VALUES ('Add User', 101, 2, 'add', 'settings/users/AddUser', 'C', 'user:add', 1);
+```
+
+**Result Structure**:
+```
+System Settings (L1)
+  └─ User Management (L2)
+      ├─ User List (L3)
+      └─ Add User (L3)
+```
+
+### 4.3 Complete Role Configuration Example
+
+**Scenario**: Configure menus for "QC Manager" role
+
+```sql
+-- 1. Create role
+INSERT INTO sys_role (role_name, role_key, status)
+VALUES ('QC Manager', 'qc_manager', 1)
+RETURNING role_id; -- Returns: 4
+
+-- 2. Assign menus to role
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES
+(4, 1),   -- Dashboard
+(4, 2),   -- My Workspace
+(4, 3),   -- Analytics
+(4, 10),  -- QC Module (parent)
+(4, 11),  -- - Sampling
+(4, 14),  -- - Inbox
+(4, 15),  -- - Drafts
+(4, 16),  -- - Outbox
+(4, 17),  -- - Dispute
+(4, 18);  -- - History
+
+-- 3. Assign role to user
+INSERT INTO sys_user_role (user_id, role_id)
+VALUES (5, 4); -- User ID 5 becomes QC Manager
+```
+
+### 4.4 Menu Configuration Best Practices
+
+1. **Order Numbers**:
+   - Use increments of 1 or 10 for flexibility
+   - Leave gaps for future insertions
+
+2. **Path Convention**:
+   - Root level: `/path` (leading slash)
+   - Sub-levels: `subpath` (no leading slash)
+   - Example: `/qc-module` → `sampling`
+
+3. **Icon Names**:
+   - Use Ant Design icon names: `DashboardOutlined`, `FileProtectOutlined`
+   - Check: https://ant.design/components/icon
+
+4. **Permission Strings**:
+   - Format: `module:resource:action`
+   - Example: `qc:sampling:list`, `qc:sampling:add`
+
+5. **Menu Types**:
+   - Use 'M' for categories with children
+   - Use 'C' for clickable menu items
+   - Use 'F' for button-level permissions
+
+---
+
+## 5. Backend Implementation
+
+### 5.1 Entity Classes
+
+#### SysMenu.java
+
+```java
+@Data
+@Entity
+@Table(name = "sys_menu")
+public class SysMenu {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "menu_id")
+    private Long menuId;
+    
+    @Column(name = "menu_name", nullable = false)
+    private String menuName;
+    
+    @Column(name = "parent_id")
+    private Long parentId;
+    
+    @Column(name = "order_num")
+    private Integer orderNum;
+    
+    private String path;
+    private String component;
+    private String menuType;
+    private String perms;
+    private String icon;
+    private Integer visible;
+    
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+    
+    // For tree structure (NOT persisted to database)
+    @Transient
+    private List<SysMenu> children = new ArrayList<>();
+}
+```
+
+#### SysRole.java
+
+```java
+@Data
+@Entity
+@Table(name = "sys_role")
+public class SysRole {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "role_id")
+    private Long roleId;
+    
+    @Column(name = "role_name", nullable = false)
+    private String roleName;
+    
+    @Column(name = "role_key", nullable = false, unique = true)
+    private String roleKey;
+    
+    private Integer status;
+    private LocalDateTime createdAt;
+    
+    // JsonIgnore prevents menu serialization in /auth/info
+    @JsonIgnore
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "sys_role_menu",
+        joinColumns = @JoinColumn(name = "role_id"),
+        inverseJoinColumns = @JoinColumn(name = "menu_id")
+    )
+    private Set<SysMenu> menus = new HashSet<>();
+}
+```
+
+### 5.2 Tree Building Algorithm
+
+```java
+/**
+ * Converts flat menu list to hierarchical tree.
+ * Time Complexity: O(n)
+ * Space Complexity: O(n)
+ */
+private List<SysMenu> buildMenuTree(List<SysMenu> flatList) {
+    Map<Long, SysMenu> menuMap = new HashMap<>();
+    List<SysMenu> roots = new ArrayList<>();
+    
+    // First pass: Create map and initialize children
+    for (SysMenu menu : flatList) {
+        menuMap.put(menu.getMenuId(), menu);
+        menu.setChildren(new ArrayList<>());
+    }
+    
+    // Second pass: Build parent-child relationships
+    for (SysMenu menu : flatList) {
+        if (menu.getParentId() == 0 || menu.getParentId() == null) {
+            roots.add(menu);
+        } else {
+            SysMenu parent = menuMap.get(menu.getParentId());
+            if (parent != null) {
+                parent.getChildren().add(menu);
+            }
+        }
+    }
+    
+    // Sort all levels by order_num
+    sortMenusByOrder(roots);
+    
+    return roots;
+}
+
+/**
+ * Recursively sorts menus by order_num
+ */
+private void sortMenusByOrder(List<SysMenu> menus) {
+    menus.sort(Comparator.comparing(
+        SysMenu::getOrderNum,
+        Comparator.nullsLast(Comparator.naturalOrder())
+    ));
+    
+    for (SysMenu menu : menus) {
+        if (menu.getChildren() != null && !menu.getChildren().isEmpty()) {
+            sortMenusByOrder(menu.getChildren());
+        }
+    }
+}
+```
+
+### 5.3 Controller Example
+
+```java
+@RestController
+@RequestMapping("/api/menu")
+public class SysMenuController {
+    
+    @Autowired
+    private SysMenuService menuService;
+    
+    @Autowired
+    private SysUserService userService;
+    
+    @GetMapping("/user/{username}")
+    public ResponseEntity<List<SysMenu>> getMenusForUser(
+        @PathVariable String username
+    ) {
+        SysUser user = userService.findByUsername(username)
+            .orElseThrow(() -> new NotFoundException("User not found"));
+        
+        List<SysMenu> flatMenus;
+        
+        // Admin gets all menus
+        if (user.getUserId() == 1L) {
+            flatMenus = menuService.findAll();
+        } else {
+            // Get role IDs
+            Set<Long> roleIds = user.getRoles().stream()
+                .map(SysRole::getRoleId)
+                .collect(Collectors.toSet());
+            
+            // Get menus for roles
+            flatMenus = menuService.findByRoleIds(roleIds);
+        }
+        
+        // Build tree and return
+        List<SysMenu> menuTree = buildMenuTree(flatMenus);
+        return ResponseEntity.ok(menuTree);
+    }
+}
+```
+
+---
+
+## 6. Frontend Implementation
+
+### 6.1 Store Setup (Zustand)
 
 ```typescript
 interface AppState {
     token: string | null;
-    userInfo: User | null;
-    permissions: string[]; // e.g. ['system:user:add']
-    menuTree: MenuItem[]; // From /user/routers
+    isAuthenticated: boolean;
+    currentUser: User | null;
+    menuTree: MenuItem[];
     
-    login: (form: LoginForm) => Promise<void>;
-    fetchUserInfo: () => Promise<void>;
-    fetchRouters: () => Promise<void>;
+    login: (username: string) => Promise<void>;
+    logout: () => void;
 }
-```
 
-### 5.2 Layout Update (`MainLayout.tsx`)
-Instead of `const menuItems = [...]`, the layout should:
-1. Subscribe to `useAppStore` to get `menuTree`.
-2. Map the backend `menuTree` to Ant Design's `Menu` items format.
-    - **Icon Mapping**: Create a utility to map string names ("DashboardOutlined") to actual Ant Design components.
+export const useAppStore = create<AppState>((set) => ({
+    token: localStorage.getItem('token'),
+    isAuthenticated: !!localStorage.getItem('token'),
+    currentUser: null,
+    menuTree: [],
     
-**Example Icon Mapper:**
-```tsx
-const iconMap: Record<string, React.ReactNode> = {
-    DashboardOutlined: <DashboardOutlined />,
-    FileProtectOutlined: <FileProtectOutlined />,
-    // ...
+    login: async (username) => {
+        // 1. Login
+        const { token } = await authApi.login({ username, password: 'password123' });
+        localStorage.setItem('token', token);
+        
+        // 2. Get user info
+        const userInfo = await authApi.getUserInfo(username);
+        
+        // 3. Get menus (tree structure)
+        const menus = await menuApi.getRouters(username);
+        
+        // 4. Extract role from roles array
+        const roleKey = userInfo.roles?.[0]?.roleKey;
+        const role = normalizeRole(roleKey);
+        
+        // 5. Set state
+        set({ 
+            token, 
+            isAuthenticated: true, 
+            currentUser: { ...userInfo, role },
+            menuTree: menus 
+        });
+    },
+    
+    logout: () => {
+        localStorage.removeItem('token');
+        set({ 
+            token: null, 
+            isAuthenticated: false, 
+            currentUser: null, 
+            menuTree: [] 
+        });
+    }
+}));
+```
+
+### 6.2 Menu Rendering (MainLayout)
+
+```typescript
+const MainLayout = ({ children }) => {
+    const { menuTree } = useAppStore();
+    
+    // Icon mapping
+    const iconMap: Record<string, React.ReactNode> = {
+        'DashboardOutlined': <DashboardOutlined />,
+        'FileProtectOutlined': <FileProtectOutlined />,
+        'TeamOutlined': <TeamOutlined />,
+        // ... add all used icons
+    };
+    
+    // Convert backend tree to Ant Design format
+    const convertBackendMenu = (items: MenuItem[]): any[] => {
+        return items.map((it) => {
+            // Remove leading slash from path
+            let path = it.path || String(it.menuId);
+            if (path.startsWith('/')) {
+                path = path.substring(1);
+            }
+            
+            return {
+                key: path,
+                label: it.menuName,
+                icon: it.icon && iconMap[it.icon],
+                // Recursively convert children
+                children: it.children?.length > 0 
+                    ? convertBackendMenu(it.children) 
+                    : undefined
+            };
+        });
+    };
+    
+    const menuItems = menuTree.length > 0 
+        ? convertBackendMenu(menuTree) 
+        : staticFallbackMenu;
+    
+    return (
+        <Layout>
+            <Sider>
+                <Menu
+                    mode="inline"
+                    items={menuItems}
+                    onClick={({ key }) => navigate(key)}
+                />
+            </Sider>
+            <Content>{children}</Content>
+        </Layout>
+    );
 };
 ```
 
-### 5.3 Protected Routes
-Create a wrapper component `<PrivateRoute />` or check permissions in `useEffect`. If `menuTree` is empty, redirect to login.
+---
 
-```tsx
-// Simple permission check hook
-const usePermission = (permissionKey: string) => {
-    const { permissions } = useAppStore();
-    return permissions.includes(permissionKey);
-};
+## 7. Testing Guide
 
-// Usage in button
-{usePermission('qc:audit:approve') && <Button>Approve</Button>}
+### 7.1 Backend API Testing
+
+**Test Menu API Returns Tree**:
+```bash
+# PowerShell
+Invoke-WebRequest -Uri "http://localhost:8080/api/menu/user/admin" | 
+    Select-Object -ExpandProperty Content | 
+    ConvertFrom-Json | 
+    ConvertTo-Json -Depth 5
+
+# Expected: Should see "children" arrays nested in response
 ```
+
+**Test Role Filtering**:
+```bash
+# Admin should see all menus
+GET /api/menu/user/admin
+
+# Staff should see limited menus
+GET /api/menu/user/alice
+```
+
+### 7.2 Frontend Testing
+
+1. **Login Flow**:
+   - Clear localStorage: `localStorage.clear()`
+   - Navigate to `localhost:5173`
+   - Should show login page
+   - Login with different users
+
+2. **Menu Display**:
+   - Admin: Should see all menus
+   - Manager: Should see manager menus
+   - Staff: Should see limited menus
+
+3. **Menu Navigation**:
+   - Click all menu items
+   - Verify correct page loads
+
+---
+
+## 8. Migration Scripts
+
+### 8.1 Initial Setup (V1)
+
+```sql
+-- V1__init_rbac.sql
+CREATE TABLE sys_user (...);
+CREATE TABLE sys_role (...);
+CREATE TABLE sys_menu (...);
+CREATE TABLE sys_user_role (...);
+CREATE TABLE sys_role_menu (...);
+
+-- Seed data
+INSERT INTO sys_role (role_name, role_key) VALUES
+('Administrator', 'admin'),
+('QC Manager', 'manager'),
+('QC Staff', 'staff');
+
+-- Create admin user
+INSERT INTO sys_user (username, password, real_name) 
+VALUES ('admin', '$2a$10$...', 'System Admin');
+```
+
+### 8.2 Complete Menu Setup (V2)
+
+```sql
+-- V2__add_complete_menus.sql
+-- Clear old associations
+DELETE FROM sys_role_menu;
+
+-- Insert all menus with proper hierarchy
+INSERT INTO sys_menu (...) VALUES (...);
+
+-- Assign menus to roles
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES
+(1, 1), (1, 2), (1, 3), ...; -- Admin gets all
+
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES
+(2, 1), (2, 2), ...; -- Manager subset
+
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES
+(3, 1), (3, 2), ...; -- Staff subset
+```
+
+---
+
+## 9. Troubleshooting
+
+### Issue: Menu not displaying after login
+
+**Cause**: Old token in localStorage  
+**Solution**: Clear localStorage: `localStorage.clear()`
+
+### Issue: Sub-menus not showing
+
+**Cause**: Backend not returning tree structure  
+**Solution**: Verify `buildMenuTree` is called in controller
+
+### Issue: Wrong role displayed
+
+**Cause**: Role mapping incorrect  
+**Solution**: Check `normalizeRole` function in frontend
+
+### Issue: Menu data in /auth/info
+
+**Cause**: Missing `@JsonIgnore` on SysRole.menus  
+**Solution**: Add `@JsonIgnore` annotation
+
+---
+
+## 10. Future Enhancements
+
+1. **Button-Level Permissions**: Use `menu_type='F'` for fine-grained control
+2. **Dynamic Routing**: Generate routes from menu tree
+3. **Menu Caching**: Cache menu trees on backend
+4. **Permission Strings**: Add permission checking hooks
+5. **Menu Editor UI**: Build admin interface for menu management
+
+---
+
+## Appendix A: Complete Menu Configuration Example
+
+See database migration file `V2__add_complete_menus.sql` for production-ready example with all current menus configured.
+
+## Appendix B: API Response Examples
+
+Full response examples are documented in sections 3.1 and 3.2 above.
