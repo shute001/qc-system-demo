@@ -53,6 +53,8 @@ function App() {
       case 'team':
       case 'team-structure':
         return <TeamManagement initialTab="structure" />;
+      case 'role-mgmt':
+        return <TeamManagement initialTab="roles" />;
       case 'access-mgmt':
         return <TeamManagement initialTab="access" />;
       case 'sampling-rules':

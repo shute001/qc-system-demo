@@ -70,8 +70,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, currentView, onNaviga
             label: 'System Management',
             roles: ['Admin', 'M1', 'M2'],
             children: [
-                { key: 'team-structure', label: 'Team Structure' },
-                { key: 'access-mgmt', label: 'Access Management' },
+                { key: 'team-structure', label: 'User Management' },
+                { key: 'role-mgmt', label: 'Role Management' },
+                { key: 'access-mgmt', label: 'Process Management' },
                 { key: 'sampling-rules', label: 'Sampling Rules' },
             ]
         },
