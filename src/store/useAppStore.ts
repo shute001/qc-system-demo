@@ -8,40 +8,45 @@ export interface User {
     role: Role;
     avatar: string;
     lineManagerId?: string;
-    department?: string;
     processes?: string[]; // Array of process IDs assigned to this user
 }
 
 export interface Process {
     id: string;
-    code: string; // e.g., "COLLECTION-CNSH-001"
-    name: string; // e.g., "Collection China Shanghai Branch"
-    country: string; // e.g., "CN", "US", "SG"
-    region: string; // e.g., "SH", "BJ", "NY"
-    businessLine: string; // e.g., "COLLECTION", "SALES", "CS"
+    procCode: string; // e.g. "businessCode -- procAid -- procName"
+    procAid: string; // e.g. "NHI25"
+    procName: string; // e.g. "Collections Onshore"
+    businessId: string; // e.g. "COLLECTION"
+    qltyTarget: number; // e.g. 95
     status: 'Active' | 'Inactive';
     createdAt: string;
+}
+
+export interface SysMenu {
+    menuId: number;
+    menuName: string;
+    parentId: number;
+    orderNum: number;
+    path: string;
+    component?: string;
+    menuType: 'D' | 'C' | 'F'; // Directory, Component, Function
+    perms?: string;
+    icon?: string;
+    visible: number; // 1 or 0
+    children?: SysMenu[];
 }
 
 export interface RoleDefinition {
     id: string;
-    roleKey: Role; // 'Admin' | 'M1' | 'M2' | 'Staff'
+    roleKey: string; // Changed from enum to string to support dynamic roles
     roleName: string;
     description: string;
-    permissions: string[]; // Array of page/route keys
+    menuIds: number[]; // Changed from permissions string[] to menuId[]
     status: 'Active' | 'Inactive';
     createdAt: string;
 }
 
-export interface PagePermission {
-    key: string; // Route key
-    name: string; // Display name
-    path: string; // Route path
-    category: 'QC' | 'Team' | 'Development' | 'Analytics' | 'System';
-}
-
 export interface SamplingRule {
-    department: string;
     qcType: 'Data' | 'Call';
     percentage: number; // 0-100
     minCount: number;
@@ -109,7 +114,9 @@ interface AppState {
     leaderLogs: LeaderLog[];
     processList: Process[]; // Process list
     roleDefinitions: RoleDefinition[]; // Role definitions with permissions
-    pagePermissions: PagePermission[]; // Available pages for permission assignment
+
+    // We will use a flat list of menus for storage, but build tree for UI
+    menuList: SysMenu[];
 
     // Actions
     addQCRecord: (record: QCRecord) => void;
@@ -140,92 +147,93 @@ interface AppState {
 
 // Mock Initial Data
 const initialStaff: User[] = [
-    { id: 'u1', name: 'Alice Staff', role: 'Staff', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alice', department: 'CS', lineManagerId: 'm1' },
-    { id: 'u2', name: 'Bob Staff', role: 'Staff', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bob', department: 'CS', lineManagerId: 'm1' },
-    { id: 'm1', name: 'Mike Manager (M1)', role: 'M1', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike', department: 'CS', lineManagerId: 'm2' },
-    { id: 'm2', name: 'Sarah Director (M2)', role: 'M2', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah', department: 'CS' },
-    { id: 'admin', name: 'Admin User', role: 'Admin', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Admin', department: 'IT' },
+    { id: 'u1', name: 'Alice Staff', role: 'Staff', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alice', lineManagerId: 'm1' },
+    { id: 'u2', name: 'Bob Staff', role: 'Staff', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bob', lineManagerId: 'm1' },
+    { id: 'm1', name: 'Mike Manager (M1)', role: 'M1', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike', lineManagerId: 'm2' },
+    { id: 'm2', name: 'Sarah Director (M2)', role: 'M2', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
+    { id: 'admin', name: 'Admin User', role: 'Admin', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Admin' },
 ];
 
 const initialRules: SamplingRule[] = [
-    { department: 'CS', qcType: 'Data', percentage: 10, minCount: 5 },
-    { department: 'CS', qcType: 'Call', percentage: 5, minCount: 3 },
+    { qcType: 'Data', percentage: 10, minCount: 5 },
+    { qcType: 'Call', percentage: 5, minCount: 3 },
 ];
 
 const initialProcesses: Process[] = [
     {
         id: 'PROC-001',
-        code: 'COLLECTION-CNSH-001',
-        name: 'Collection China Shanghai Branch',
-        country: 'CN',
-        region: 'SH',
-        businessLine: 'COLLECTION',
+        procCode: 'COL -- NHI25 -- Collection China Shanghai Branch',
+        procAid: 'NHI25',
+        procName: 'Collection China Shanghai Branch',
+        businessId: 'COLLECTION', // Using mock business ID/Code
+        qltyTarget: 95,
         status: 'Active',
         createdAt: '2023-10-01T08:00:00Z'
     },
     {
         id: 'PROC-002',
-        code: 'COLLECTION-CNBJ-001',
-        name: 'Collection China Beijing Branch',
-        country: 'CN',
-        region: 'BJ',
-        businessLine: 'COLLECTION',
+        procCode: 'COL -- NHI26 -- Collection China Beijing Branch',
+        procAid: 'NHI26',
+        procName: 'Collection China Beijing Branch',
+        businessId: 'COLLECTION',
+        qltyTarget: 95,
         status: 'Active',
         createdAt: '2023-10-01T08:00:00Z'
     },
     {
         id: 'PROC-003',
-        code: 'SALES-SGSG-001',
-        name: 'Sales Singapore Branch',
-        country: 'SG',
-        region: 'SG',
-        businessLine: 'SALES',
+        procCode: 'SALES -- SGS01 -- Sales Singapore Branch',
+        procAid: 'SGS01',
+        procName: 'Sales Singapore Branch',
+        businessId: 'SALES',
+        qltyTarget: 90,
         status: 'Active',
         createdAt: '2023-10-01T08:00:00Z'
     },
     {
         id: 'PROC-004',
-        code: 'CS-USNY-001',
-        name: 'Customer Service US New York',
-        country: 'US',
-        region: 'NY',
-        businessLine: 'CS',
+        procCode: 'CS -- CSUSA -- Customer Service US New York',
+        procAid: 'CSUSA',
+        procName: 'Customer Service US New York',
+        businessId: 'CS',
+        qltyTarget: 98,
         status: 'Active',
         createdAt: '2023-10-01T08:00:00Z'
     }
 ];
 
-// Page Permissions - All available pages in the system
-const initialPagePermissions: PagePermission[] = [
-    // Analytics
-    { key: 'dashboard', name: 'Dashboard', path: '/dashboard', category: 'Analytics' },
-    { key: 'workspace', name: 'My Workspace', path: '/workspace', category: 'Analytics' },
-    { key: 'analytics', name: 'Analytics Dashboard', path: '/analytics', category: 'Analytics' },
+// Initial Menus (Matching Design Doc concepts, flat list for easy storage/lookup)
+const initialMenus: SysMenu[] = [
+    { menuId: 1, menuName: 'Dashboard', parentId: 0, orderNum: 1, path: '/dashboard', component: 'Dashboard', menuType: 'C', icon: 'DashboardOutlined', visible: 1 },
+    { menuId: 2, menuName: 'My Workspace', parentId: 0, orderNum: 2, path: '/workspace', component: 'Workspace', menuType: 'C', icon: 'DesktopOutlined', visible: 1 },
+    { menuId: 3, menuName: 'Analytics', parentId: 0, orderNum: 3, path: '/analytics', component: 'AnalyticsDashboard', menuType: 'C', icon: 'BarChartOutlined', visible: 1 },
 
-    // QC Management
-    { key: 'qc-sampling', name: 'QC Sampling', path: '/qc-module/sampling', category: 'QC' },
-    { key: 'qc-inbox', name: 'QC Inbox', path: '/qc-module/qc-inbox', category: 'QC' },
-    { key: 'qc-drafts', name: 'QC Drafts', path: '/qc-module/drafts', category: 'QC' },
-    { key: 'qc-outbox', name: 'QC Outbox', path: '/qc-module/outbox', category: 'QC' },
-    { key: 'qc-dispute', name: 'Dispute Resolution', path: '/qc-module/dispute', category: 'QC' },
-    { key: 'qc-history', name: 'QC History', path: '/qc-module/history', category: 'QC' },
+    // QC Module
+    { menuId: 10, menuName: 'QC Management', parentId: 0, orderNum: 4, path: '/qc-module', menuType: 'D', icon: 'FileProtectOutlined', visible: 1 },
+    { menuId: 11, menuName: 'Sampling', parentId: 10, orderNum: 1, path: 'sampling', component: 'qc/Sampling', menuType: 'C', perms: 'qc:sampling:list', visible: 1 },
+    { menuId: 12, menuName: 'Inbox (To QC)', parentId: 10, orderNum: 2, path: 'qc-inbox', component: 'qc/SamplingPage', menuType: 'C', perms: 'qc:inbox:list', visible: 1 },
+    { menuId: 13, menuName: 'Drafts', parentId: 10, orderNum: 3, path: 'drafts', component: 'qc/Drafts', menuType: 'C', visible: 1 },
+    { menuId: 14, menuName: 'Outbox', parentId: 10, orderNum: 4, path: 'outbox', component: 'qc/Outbox', menuType: 'C', visible: 1 },
+    { menuId: 15, menuName: 'Dispute Resolution', parentId: 10, orderNum: 5, path: 'dispute', component: 'qc/DisputeResolution', menuType: 'C', visible: 1 },
+    { menuId: 16, menuName: 'History', parentId: 10, orderNum: 6, path: 'history', component: 'qc/History', menuType: 'C', visible: 1 },
 
     // Team Management
-    { key: 'team-management', name: 'Team Management', path: '/team-management', category: 'Team' },
+    { menuId: 20, menuName: 'Team Management', parentId: 0, orderNum: 5, path: '/team-management', component: 'TeamManagement', menuType: 'C', icon: 'TeamOutlined', visible: 1 },
 
-    // Development
-    { key: 'dev-plan', name: 'Development Plan', path: '/dev-plan', category: 'Development' },
-    { key: 'leader-log', name: 'Leader Log', path: '/leader-log', category: 'Development' },
+    // Development Plan
+    { menuId: 30, menuName: 'Development Plan', parentId: 0, orderNum: 6, path: '/dev-plan', component: 'DevPlanPage', menuType: 'C', icon: 'RocketOutlined', visible: 1 },
+    { menuId: 31, menuName: 'Leader Log', parentId: 0, orderNum: 7, path: '/leader-log', component: 'LeaderLogPage', menuType: 'C', icon: 'ReadOutlined', visible: 1 },
 ];
 
-// Role Definitions with permissions
+
+// Role Definitions with menu IDs
 const initialRoleDefinitions: RoleDefinition[] = [
     {
         id: 'ROLE-001',
         roleKey: 'Admin',
         roleName: 'Administrator',
         description: 'Full system access with all permissions',
-        permissions: initialPagePermissions.map(p => p.key), // All permissions
+        menuIds: initialMenus.map(m => m.menuId), // All menus
         status: 'Active',
         createdAt: '2023-10-01T08:00:00Z'
     },
@@ -234,7 +242,8 @@ const initialRoleDefinitions: RoleDefinition[] = [
         roleKey: 'M1',
         roleName: 'Manager Level 1',
         description: 'Approvals & QC Manager with team oversight',
-        permissions: ['dashboard', 'workspace', 'analytics', 'qc-sampling', 'qc-inbox', 'qc-outbox', 'qc-dispute', 'qc-history', 'dev-plan', 'leader-log'],
+        // Example: Dashboard, Workspace, Analytics, QC Module (all), Dev Plan, Leader Log
+        menuIds: [1, 2, 3, 10, 11, 12, 13, 14, 15, 16, 30, 31],
         status: 'Active',
         createdAt: '2023-10-01T08:00:00Z'
     },
@@ -243,7 +252,7 @@ const initialRoleDefinitions: RoleDefinition[] = [
         roleKey: 'M2',
         roleName: 'Manager Level 2',
         description: 'Senior QC Manager with extended permissions',
-        permissions: ['dashboard', 'workspace', 'analytics', 'qc-sampling', 'qc-inbox', 'qc-outbox', 'qc-dispute', 'qc-history', 'team-management', 'dev-plan', 'leader-log'],
+        menuIds: [1, 2, 3, 10, 11, 12, 13, 14, 15, 16, 20, 30, 31],
         status: 'Active',
         createdAt: '2023-10-01T08:00:00Z'
     },
@@ -252,7 +261,7 @@ const initialRoleDefinitions: RoleDefinition[] = [
         roleKey: 'Staff',
         roleName: 'Standard Staff',
         description: 'Basic QC staff with limited permissions',
-        permissions: ['dashboard', 'workspace', 'qc-inbox', 'qc-dispute', 'dev-plan'],
+        menuIds: [1, 2, 10, 12, 15, 30], // Limited QC access
         status: 'Active',
         createdAt: '2023-10-01T08:00:00Z'
     }
@@ -289,7 +298,7 @@ export const useAppStore = create<AppState>((set) => ({
     leaderLogs: [],
     processList: initialProcesses,
     roleDefinitions: initialRoleDefinitions,
-    pagePermissions: initialPagePermissions,
+    menuList: initialMenus,
 
     addQCRecord: (record) => set((state) => ({ qcRecords: [...state.qcRecords, record] })),
     updateQCRecord: (id, updates) => set((state) => ({

@@ -33,6 +33,9 @@ erDiagram
     SYS_ROLE ||--o{ SYS_ROLE_MENU : has
     SYS_MENU ||--o{ SYS_ROLE_MENU : has
     SYS_MENU ||--o{ SYS_MENU : "parent_id"
+    SYS_BUSINESS ||--o{ SYS_PROCESS : owns
+    SYS_USER ||--o{ SYS_USER_PROCESS : has
+    SYS_PROCESS ||--o{ SYS_USER_PROCESS : has
 ```
 
 ### 2.2 Table Definitions
@@ -41,27 +44,29 @@ erDiagram
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| `user_id` | BIGSERIAL | PRIMARY KEY | Auto-increment user ID |
-| `username` | VARCHAR(50) | UNIQUE, NOT NULL | Login username |
-| `password` | VARCHAR(100) | NOT NULL | BCrypt hashed password |
-| `real_name` | VARCHAR(100) | | Display name |
+| `id` | UUID | PRIMARY KEY | Unique ID |
+| `staff_id` | VARCHAR(50) | UNIQUE, NOT NULL | |
+| `staff_name` | VARCHAR(100) | | Display name |
 | `email` | VARCHAR(100) | | Email address |
-| `avatar` | VARCHAR(255) | | Avatar URL |
 | `status` | INTEGER | DEFAULT 1 | 1=Active, 0=Disabled |
-| `dept_id` | BIGINT | | Department ID |
-| `manager_id` | BIGINT | FK to user_id | Line manager reference |
+| `manager_id` | UUID | FK to `sys_user(id)` | Line manager reference |
+| `created_by` | VARCHAR(50) | | Created by |
 | `created_at` | TIMESTAMP | DEFAULT now() | Creation timestamp |
+| `updated_by` | VARCHAR(50) | | Updated by |
 | `updated_at` | TIMESTAMP | DEFAULT now() | Last update timestamp |
 
 #### `sys_role` - Roles
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| `role_id` | BIGSERIAL | PRIMARY KEY | Auto-increment role ID |
-| `role_name` | VARCHAR(50) | NOT NULL | Display name (e.g., "Administrator") |
-| `role_key` | VARCHAR(50) | UNIQUE, NOT NULL | Role identifier (e.g., "admin", "manager", "staff") |
+| `id` | UUID | PRIMARY KEY | Unique ID |
+| `role_name` | VARCHAR(50) | NUNIQUE, NOT NULL | Role identifier (e.g., "admin", "M1", "staff") |
+| `role_desc` | VARCHAR(100) | | Role description |
 | `status` | INTEGER | DEFAULT 1 | 1=Active, 0=Disabled |
+| `created_by` | VARCHAR(50) | | Created by |
 | `created_at` | TIMESTAMP | DEFAULT now() | Creation timestamp |
+| `updated_by` | VARCHAR(50) | | Updated by |
+| `updated_at` | TIMESTAMP | DEFAULT now() | Last update timestamp |
 
 **Important**: When serializing to JSON, the `menus` relationship should use `@JsonIgnore` to avoid data duplication with dedicated menu API.
 
@@ -75,14 +80,14 @@ erDiagram
 | `order_num` | INTEGER | DEFAULT 0 | Display order (ascending) |
 | `path` | VARCHAR(255) | | Frontend route path |
 | `component` | VARCHAR(255) | | React component path |
-| `menu_type` | CHAR(1) | | 'M'=Directory, 'C'=Menu, 'F'=Button |
+| `menu_type` | CHAR(1) | | 'D'=Directory, 'C'=Menu, 'F'=Button |
 | `perms` | VARCHAR(100) | | Permission string (e.g., "qc:sampling:list") |
 | `icon` | VARCHAR(100) | | Ant Design icon name (e.g., "DashboardOutlined") |
 | `visible` | INTEGER | DEFAULT 1 | 1=Visible, 0=Hidden |
 | `created_at` | TIMESTAMP | DEFAULT now() | Creation timestamp |
 
 **Menu Types**:
-- **M** (Directory): Parent menu with children (e.g., "QC Module")
+- **D** (Directory): Parent menu with children (e.g., "QC Module")
 - **C** (Component): Clickable menu item (e.g., "Sampling")
 - **F** (Function): Button-level permission (e.g., "Approve")
 
@@ -90,8 +95,8 @@ erDiagram
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| `user_id` | BIGINT | PRIMARY KEY, FK | References sys_user |
-| `role_id` | BIGINT | PRIMARY KEY, FK | References sys_role |
+| `user_id` | UUID | PRIMARY KEY, FK | References sys_user(id) |
+| `role_id` | UUID | PRIMARY KEY, FK | References sys_role(id) |
 
 **Composite Primary Key**: (`user_id`, `role_id`)
 
@@ -99,10 +104,45 @@ erDiagram
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| `role_id` | BIGINT | PRIMARY KEY, FK | References sys_role |
-| `menu_id` | BIGINT | PRIMARY KEY, FK | References sys_menu |
+| `role_id` | UUID | PRIMARY KEY, FK | References sys_role(id) |
+| `menu_id` | UUID | PRIMARY KEY, FK | References sys_menu(id) |
 
 **Composite Primary Key**: (`role_id`, `menu_id`)
+
+
+#### `sys_business` - Business Units
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY | Unique ID |
+| `business_code` | VARCHAR(50) | UNIQUE, NOT NULL | Business unit code (e.g., COL, UWS, etc.) |
+| `business_name` | VARCHAR(100) | NOT NULL | Business unit name (e.g., Collections, etc.) |
+| `status` | INTEGER | DEFAULT 1 | 1=Active, 0=Disabled |
+| `created_at` | TIMESTAMP | DEFAULT now() | Creation timestamp |
+
+#### `sys_process` - Process lines under Business
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY | Unique ID |
+| `business_id` | UUID | PRIMARY KEY, FK | References sys_business(id) |
+| `proc_aid` | VARCHAR(50) | NOT NULL | Process Aid (e.g., "NHI25", etc.) |
+| `proc_name` | VARCHAR(100) | NOT NULL | Process name (e.g., "Collections Onshore", etc.) |
+| `qlty_target` | INTEGER | DEFAULT 0 | Quality target |
+| `status` | INTEGER | DEFAULT 1 | 1=Active, 0=Disabled |
+| `created_by` | VARCHAR(50) | | Created by |
+| `created_at` | TIMESTAMP | DEFAULT now() | Creation timestamp |
+| `updated_by` | VARCHAR(50) | | Updated by |
+| `updated_at` | TIMESTAMP | DEFAULT now() | Last update timestamp |
+
+#### `sys_user_process` - User-Process Association
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `user_id` | UUID | PRIMARY KEY, FK | References sys_user(id) |
+| `process_id` | UUID | PRIMARY KEY, FK | References sys_process(id) |
+
+**Composite Primary Key**: (`user_id`, `process_id`)
 
 ---
 
@@ -111,35 +151,6 @@ erDiagram
 All APIs use standard REST conventions with JSON request/response bodies.
 
 ### 3.1 Authentication APIs
-
-#### POST `/api/auth/login`
-
-**Purpose**: Authenticate user and obtain JWT token
-
-**Request**:
-```json
-{
-  "username": "admin",
-  "password": "password123"
-}
-```
-
-**Response** (200 OK):
-```json
-{
-  "token": "dummy-jwt-token-for-admin",
-  "expireTime": 3600
-}
-```
-
-**Response** (401 Unauthorized):
-```json
-{
-  "error": "Invalid credentials"
-}
-```
-
----
 
 #### GET `/api/auth/info`
 

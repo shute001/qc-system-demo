@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Tabs, Table, Button, Card, Tag, Switch, InputNumber, Form, Modal, Input, Select, message, Space, Popconfirm } from 'antd';
+import { Tabs, Table, Button, Card, Tag, Switch, InputNumber, Form, Modal, Input, Select, message, Space, Popconfirm, Tree } from 'antd';
 import { UserOutlined, SettingOutlined, SafetyCertificateOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useAppStore } from '../../store/useAppStore';
-import type { User, Process, RoleDefinition, PagePermission } from '../../store/useAppStore';
+import type { User, Process, RoleDefinition, SysMenu } from '../../store/useAppStore';
 
 const { TabPane } = Tabs;
 const { Option } = Select;
@@ -34,26 +34,9 @@ const ProcessManagement: React.FC = () => {
     // Process table columns
     const processColumns = [
         {
-            title: 'Process Code',
-            dataIndex: 'code',
-            key: 'code',
-            render: (code: string) => <Tag color="blue">{code}</Tag>
-        },
-        {
-            title: 'Name',
-            dataIndex: 'name',
-            key: 'name',
-            width: 250
-        },
-        {
-            title: 'Country/Region',
-            key: 'location',
-            render: (_: any, record: Process) => `${record.country}-${record.region}`
-        },
-        {
             title: 'Business Line',
-            dataIndex: 'businessLine',
-            key: 'businessLine',
+            dataIndex: 'businessId',
+            key: 'businessId',
             render: (line: string) => {
                 const colorMap: Record<string, string> = {
                     'COLLECTION': 'green',
@@ -64,6 +47,24 @@ const ProcessManagement: React.FC = () => {
                 };
                 return <Tag color={colorMap[line] || 'default'}>{line}</Tag>;
             }
+        },
+        {
+            title: 'Process Aid',
+            dataIndex: 'procAid',
+            key: 'procAid',
+            render: (code: string) => <Tag color="blue">{code}</Tag>
+        },
+        {
+            title: 'Process Name',
+            dataIndex: 'procName',
+            key: 'procName',
+            width: 250
+        },
+        {
+            title: 'Quality Target',
+            dataIndex: 'qltyTarget',
+            key: 'qltyTarget',
+            render: (val: number) => <Tag color={val >= 95 ? 'green' : 'orange'}>{val}%</Tag>
         },
         {
             title: 'Status',
@@ -145,11 +146,10 @@ const ProcessManagement: React.FC = () => {
     const handleEditProcess = (process: Process) => {
         setEditingProcess(process);
         processForm.setFieldsValue({
-            code: process.code,
-            name: process.name,
-            country: process.country,
-            region: process.region,
-            businessLine: process.businessLine,
+            procAid: process.procAid,
+            procName: process.procName,
+            businessId: process.businessId,
+            qltyTarget: process.qltyTarget,
             status: process.status
         });
         setIsProcessModalOpen(true);
@@ -162,11 +162,10 @@ const ProcessManagement: React.FC = () => {
             if (editingProcess) {
                 // Update existing process
                 updateProcess(editingProcess.id, {
-                    code: values.code,
-                    name: values.name,
-                    country: values.country,
-                    region: values.region,
-                    businessLine: values.businessLine,
+                    procAid: values.procAid,
+                    procName: values.procName,
+                    businessId: values.businessId,
+                    qltyTarget: values.qltyTarget,
                     status: values.status
                 });
                 message.success('Process updated successfully');
@@ -174,11 +173,11 @@ const ProcessManagement: React.FC = () => {
                 // Create new process
                 const newProcess: Process = {
                     id: `PROC-${Date.now()}`,
-                    code: values.code,
-                    name: values.name,
-                    country: values.country,
-                    region: values.region,
-                    businessLine: values.businessLine,
+                    procCode: values.procCode,
+                    procAid: values.procAid,
+                    procName: values.procName,
+                    businessId: values.businessId,
+                    qltyTarget: values.qltyTarget,
                     status: values.status,
                     createdAt: new Date().toISOString()
                 };
@@ -217,59 +216,36 @@ const ProcessManagement: React.FC = () => {
             >
                 <Form form={processForm} layout="vertical">
                     <Form.Item
-                        label="Process Code"
-                        name="code"
+                        label="Process Aid"
+                        name="procAid"
                         rules={[
-                            { required: true, message: 'Please enter process code' },
+                            { required: true, message: 'Please enter Process Aid' },
                             { pattern: /^[A-Z0-9_-]+$/, message: 'Only uppercase letters, numbers, hyphens and underscores allowed' }
                         ]}
                     >
-                        <Input placeholder="e.g., COLLECTION-CNSH-001" />
+                        <Input placeholder="e.g., NHI25" />
                     </Form.Item>
 
                     <Form.Item
                         label="Process Name"
-                        name="name"
+                        name="procName"
                         rules={[{ required: true, message: 'Please enter process name' }]}
                     >
-                        <Input placeholder="e.g., Collection China Shanghai Branch" />
+                        <Input placeholder="e.g., Collections Onshore" />
                     </Form.Item>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <Form.Item
-                            label="Country"
-                            name="country"
-                            rules={[{ required: true, message: 'Please select country' }]}
-                        >
-                            <Select
-                                placeholder="Select country"
-                                onChange={(value) => {
-                                    setSelectedCountry(value);
-                                    processForm.setFieldsValue({ region: undefined });
-                                }}
-                            >
-                                {countryOptions.map(c => (
-                                    <Option key={c} value={c}>{c}</Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-
-                        <Form.Item
-                            label="Region"
-                            name="region"
-                            rules={[{ required: true, message: 'Please select region' }]}
-                        >
-                            <Select placeholder="Select region">
-                                {regionOptions[selectedCountry as keyof typeof regionOptions]?.map(r => (
-                                    <Option key={r} value={r}>{r}</Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-                    </div>
+                    <Form.Item
+                        label="Quality Target (%)"
+                        name="qltyTarget"
+                        initialValue={95}
+                        rules={[{ required: true, message: 'Please enter quality target' }]}
+                    >
+                        <InputNumber min={0} max={100} style={{ width: '100%' }} />
+                    </Form.Item>
 
                     <Form.Item
                         label="Business Line"
-                        name="businessLine"
+                        name="businessId"
                         rules={[{ required: true, message: 'Please select business line' }]}
                     >
                         <Select placeholder="Select business line">
@@ -298,27 +274,30 @@ const ProcessManagement: React.FC = () => {
 
 // RoleManagement Component
 const RoleManagement: React.FC = () => {
-    const { roleDefinitions, pagePermissions, staffList, addRole, updateRole, deleteRole } = useAppStore();
+    const { roleDefinitions, menuList, staffList, addRole, updateRole, deleteRole } = useAppStore();
     const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
     const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<RoleDefinition | null>(null);
     const [selectedRoleForPermissions, setSelectedRoleForPermissions] = useState<RoleDefinition | null>(null);
     const [roleForm] = Form.useForm();
-    const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+    const [checkedKeys, setCheckedKeys] = useState<React.Key[]>([]);
 
     // Calculate users count for each role
     const getUsersCount = (roleKey: string) => {
         return staffList.filter(user => user.role === roleKey).length;
     };
 
-    // Group permissions by category
-    const groupedPermissions = pagePermissions.reduce((acc, perm) => {
-        if (!acc[perm.category]) {
-            acc[perm.category] = [];
-        }
-        acc[perm.category].push(perm);
-        return acc;
-    }, {} as Record<string, PagePermission[]>);
+    // Build Tree Data from flat menuList
+    const buildTreeData = (menus: SysMenu[], parentId: number = 0): any[] => {
+        return menus
+            .filter(menu => menu.parentId === parentId)
+            .map(menu => ({
+                key: menu.menuId,
+                title: menu.menuName,
+                children: buildTreeData(menus, menu.menuId),
+            }));
+    };
+    const treeData = buildTreeData(menuList);
 
     // Role table columns
     const roleColumns = [
@@ -338,7 +317,7 @@ const RoleManagement: React.FC = () => {
             title: 'Permissions',
             key: 'permissions',
             render: (_: any, record: RoleDefinition) => (
-                <span>{record.permissions.length}/{pagePermissions.length} pages</span>
+                <span>{record.menuIds?.length || 0} menus</span>
             )
         },
         {
@@ -375,7 +354,7 @@ const RoleManagement: React.FC = () => {
                         icon={<SafetyCertificateOutlined />}
                         onClick={() => handleEditPermissions(record)}
                     >
-                        Edit Permissions
+                        Edit Menus
                     </Button>
                     <Button
                         type="link"
@@ -455,7 +434,7 @@ const RoleManagement: React.FC = () => {
                     roleKey: values.roleKey,
                     roleName: values.roleName,
                     description: values.description,
-                    permissions: [], // Start with no permissions
+                    menuIds: [], // Start with no permissions
                     status: values.status,
                     createdAt: new Date().toISOString()
                 };
@@ -470,33 +449,34 @@ const RoleManagement: React.FC = () => {
 
     const handleEditPermissions = (role: RoleDefinition) => {
         setSelectedRoleForPermissions(role);
-        setSelectedPermissions([...role.permissions]);
+        setCheckedKeys(role.menuIds || []);
         setIsPermissionModalOpen(true);
     };
 
     const handleSavePermissions = () => {
         if (selectedRoleForPermissions) {
+            // Check if checkedKeys are numbers (they should be menuIds)
+            // Antd Tree keys might be strings if we used string keys, but we used menuId (number)
+            const newMenuIds = checkedKeys.map(k => Number(k));
+
             updateRole(selectedRoleForPermissions.id, {
-                permissions: selectedPermissions
+                menuIds: newMenuIds
             });
             message.success('Permissions updated successfully');
             setIsPermissionModalOpen(false);
         }
     };
 
-    const handleCategorySelectAll = (category: string, checked: boolean) => {
-        const categoryPerms = groupedPermissions[category].map(p => p.key);
-        if (checked) {
-            setSelectedPermissions(prev => [...new Set([...prev, ...categoryPerms])]);
-        } else {
-            setSelectedPermissions(prev => prev.filter(p => !categoryPerms.includes(p)));
-        }
+    const onCheck = (checked: React.Key[] | { checked: React.Key[]; halfChecked: React.Key[] }) => {
+        // Handle both simple array and object with halfChecked
+        const keys = Array.isArray(checked) ? checked : checked.checked;
+        setCheckedKeys(keys);
     };
 
     return (
         <>
             <div className="mb-4 flex justify-between items-center">
-                <span className="text-gray-500">Manage user roles and configure page access permissions.</span>
+                <span className="text-gray-500">Manage user roles and configure menu access.</span>
                 <Button type="primary" icon={<PlusOutlined />} onClick={handleAddRole}>
                     Add Role
                 </Button>
@@ -520,14 +500,9 @@ const RoleManagement: React.FC = () => {
                     <Form.Item
                         label="Role Key"
                         name="roleKey"
-                        rules={[{ required: true, message: 'Please select or enter role key' }]}
+                        rules={[{ required: true, message: 'Please enter role key' }]}
                     >
-                        <Select disabled={!!editingRole} placeholder="Select role type">
-                            <Option value="Admin">Admin</Option>
-                            <Option value="M1">M1</Option>
-                            <Option value="M2">M2</Option>
-                            <Option value="Staff">Staff</Option>
-                        </Select>
+                        <Input placeholder="e.g., QC_MANAGER" disabled={!!editingRole} />
                     </Form.Item>
 
                     <Form.Item
@@ -535,7 +510,7 @@ const RoleManagement: React.FC = () => {
                         name="roleName"
                         rules={[{ required: true, message: 'Please enter role name' }]}
                     >
-                        <Input placeholder="e.g., Administrator" />
+                        <Input placeholder="e.g., QC Manager" />
                     </Form.Item>
 
                     <Form.Item
@@ -560,64 +535,23 @@ const RoleManagement: React.FC = () => {
                 </Form>
             </Modal>
 
-            {/* Permission Configuration Modal */}
+            {/* Permission Configuration Modal (Tree View) */}
             <Modal
-                title={`Configure Permissions - ${selectedRoleForPermissions?.roleName}`}
+                title={`Configure Menus - ${selectedRoleForPermissions?.roleName}`}
                 open={isPermissionModalOpen}
                 onOk={handleSavePermissions}
                 onCancel={() => setIsPermissionModalOpen(false)}
-                width={700}
+                width={600}
             >
-                <div className="space-y-4">
-                    {Object.entries(groupedPermissions).map(([category, perms]) => (
-                        <Card
-                            key={category}
-                            type="inner"
-                            title={
-                                <div className="flex justify-between items-center">
-                                    <span>{category}</span>
-                                    <Space>
-                                        <Button
-                                            size="small"
-                                            onClick={() => handleCategorySelectAll(category, true)}
-                                        >
-                                            Select All
-                                        </Button>
-                                        <Button
-                                            size="small"
-                                            onClick={() => handleCategorySelectAll(category, false)}
-                                        >
-                                            Deselect All
-                                        </Button>
-                                    </Space>
-                                </div>
-                            }
-                            size="small"
-                        >
-                            <div className="grid grid-cols-2 gap-2">
-                                {perms.map(perm => (
-                                    <label key={perm.key} className="flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedPermissions.includes(perm.key)}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setSelectedPermissions(prev => [...prev, perm.key]);
-                                                } else {
-                                                    setSelectedPermissions(prev => prev.filter(p => p !== perm.key));
-                                                }
-                                            }}
-                                            className="mr-2"
-                                        />
-                                        <span>{perm.name}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </Card>
-                    ))}
-                </div>
-                <div className="mt-4 text-gray-500">
-                    Selected: {selectedPermissions.length}/{pagePermissions.length} pages
+                <div className="max-h-[500px] overflow-y-auto">
+                    <Tree
+                        checkable
+                        defaultExpandAll
+                        treeData={treeData}
+                        checkedKeys={checkedKeys}
+                        onCheck={onCheck}
+                        height={400}
+                    />
                 </div>
             </Modal>
         </>
@@ -663,7 +597,6 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ initialTab = 'structure
     const structureColumns = [
         { title: 'ID', dataIndex: 'id', key: 'id' },
         { title: 'Name', dataIndex: 'name', key: 'name' },
-        { title: 'Department', dataIndex: 'department', key: 'department', render: (t: string) => t || 'N/A' },
         {
             title: 'Line Manager',
             dataIndex: 'lineManagerId',
@@ -735,19 +668,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ initialTab = 'structure
         }
     };
 
-    // -- Tab 1.5: Role Management (New) --
-    const roleColumns = [
-        { title: 'Role Name', dataIndex: 'role', key: 'role', render: (r: string) => <Tag color="purple">{r}</Tag> },
-        { title: 'Description', dataIndex: 'desc', key: 'desc' },
-        { title: 'Users Count', dataIndex: 'count', key: 'count' },
-    ];
 
-    const roleData = [
-        { key: '1', role: 'Admin', desc: 'Full system access', count: 1 },
-        { key: '2', role: 'M1', desc: 'Manager Level 1 - Approvals & QC', count: 1 },
-        { key: '3', role: 'M2', desc: 'Manager Level 2 - Senior QC', count: 1 },
-        { key: '4', role: 'Staff', desc: 'Standard Staff User', count: 2 },
-    ];
 
 
     // -- Tab 3: Sampling Rules --
@@ -814,8 +735,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ initialTab = 'structure
                     </TabPane>
 
                     <TabPane tab={<span><SafetyCertificateOutlined />Role Management</span>} key="roles">
-                        <div className="mb-4 text-gray-500">Define and manage user roles and their scopes.</div>
-                        <Table dataSource={roleData} columns={roleColumns} pagination={false} />
+                        <RoleManagement />
                     </TabPane>
 
                     <TabPane tab={<span><SafetyCertificateOutlined />Process Management</span>} key="access">
@@ -888,8 +808,8 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ initialTab = 'structure
                             {processList.filter(p => p.status === 'Active').map(p => (
                                 <Option key={p.id} value={p.id}>
                                     <div>
-                                        <Tag color="blue" className="mr-1">{p.code}</Tag>
-                                        {p.name}
+                                        <Tag color="blue" className="mr-1">{p.procCode}</Tag>
+                                        {p.procCode}
                                     </div>
                                 </Option>
                             ))}
