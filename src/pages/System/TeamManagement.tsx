@@ -320,6 +320,7 @@ const RoleManagement: React.FC = () => {
                 <span>{record.menuIds?.length || 0} menus</span>
             )
         },
+        /*
         {
             title: 'Users Count',
             key: 'usersCount',
@@ -327,7 +328,7 @@ const RoleManagement: React.FC = () => {
                 const count = getUsersCount(record.roleKey);
                 return <Tag>{count}</Tag>;
             }
-        },
+        },*/
         {
             title: 'Status',
             dataIndex: 'status',

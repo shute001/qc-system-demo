@@ -126,9 +126,9 @@ erDiagram
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY | Unique ID |
 | `business_id` | UUID | PRIMARY KEY, FK | References sys_business(id) |
-| `proc_aid` | VARCHAR(50) | NOT NULL | Process Aid (e.g., "NHI25", etc.) |
-| `proc_name` | VARCHAR(100) | NOT NULL | Process name (e.g., "Collections Onshore", etc.) |
-| `qlty_target` | INTEGER | DEFAULT 0 | Quality target |
+| `proc_aid` | VARCHAR(50) | NOT NULL | Process Aid (e.g., "NHI25") |
+| `proc_name` | VARCHAR(100) | NOT NULL | Process name (e.g., "Collections Onshore") |
+| `qlty_target` | INTEGER | DEFAULT 95 | Quality target percentage |
 | `status` | INTEGER | DEFAULT 1 | 1=Active, 0=Disabled |
 | `created_by` | VARCHAR(50) | | Created by |
 | `created_at` | TIMESTAMP | DEFAULT now() | Creation timestamp |
@@ -167,24 +167,21 @@ GET /api/auth/info?username=admin
 **Response** (200 OK):
 ```json
 {
-  "userId": 1,
-  "username": "admin",
-  "password": "$2a$10$...",
-  "realName": "System Admin",
-  "email": null,
-  "avatar": null,
+  "id": "e277662d-428f-4030-84d4-f167c8a4610f",
+  "staffId": "40001",
+  "staffName": "admin",
   "status": 1,
-  "deptId": null,
-  "managerId": null,
+  "managerId": "e277662d-428f-4030-84d4-f167c8a46101",
   "createdAt": "2025-12-10T19:49:16.495564",
   "updatedAt": "2025-12-10T19:49:16.495564",
   "roles": [
     {
-      "roleId": 1,
-      "roleName": "Administrator",
-      "roleKey": "admin",
+      "roleId": "29adfeab-0e5d-48ab-85db-64800622053d",
+      "roleName": "Admin",
+      "roleDesc": "Administrator",
       "status": 1,
-      "createdAt": "2025-12-10T19:49:16.495564"
+      "createdAt": "2025-12-10T19:49:16.495564",
+      "updatedAt": "2025-12-10T19:49:16.495564"
     }
   ]
 }
@@ -194,22 +191,21 @@ GET /api/auth/info?username=admin
 - ✅ Returns user basic information
 - ✅ Includes `roles` array with role details
 - ❌ **Does NOT** include menus (see dedicated menu API)
-- `password` field contains BCrypt hash (should be filtered in production)
 
 ---
 
 ### 3.2 Menu APIs
 
-#### GET `/api/menu/user/{username}`
+#### GET `/api/menu/user/{userId}`
 
 **Purpose**: Get hierarchical menu tree for specific user based on their roles
 
 **Path Parameters**:
-- `username` (string, required): Username to lookup
+- `userId` (string, required): User ID to lookup
 
 **Request Example**:
 ```http
-GET /api/menu/user/admin
+GET /api/menu/user/e277662d-428f-4030-84d4-f167c8a4610f
 ```
 
 **Response** (200 OK) - **Hierarchical Tree Structure**:
@@ -236,7 +232,7 @@ GET /api/menu/user/admin
     "orderNum": 3,
     "path": "/qc-module",
     "component": null,
-    "menuType": "M",
+    "menuType": "D",
     "perms": null,
     "icon": "FileProtectOutlined",
     "visible": 1,
@@ -257,7 +253,7 @@ GET /api/menu/user/admin
         "children": []
       },
       {
-        "menuId": 14,
+        "menuId": 15,
         "menuName": "Inbox (To QC)",
         "parentId": 10,
         "orderNum": 2,
@@ -299,16 +295,240 @@ GET /api/menu/user/admin
 **Response** (200 OK):
 ```json
 [
-  {
-    "menuId": 1,
-    "menuName": "Dashboard",
+    {
+    "menuId": 10,
+    "menuName": "QC Management",
     "parentId": 0,
-    ...
+    "orderNum": 3,
+    "path": "/qc-module",
+    "component": null,
+    "menuType": "D",
+    "perms": null,
+    "icon": "FileProtectOutlined",
+    "visible": 1,
+    "createdAt": "2025-12-10T19:49:16.495564",
+    "children": []
+    },
+    {
+    "menuId": 15,
+    "menuName": "Inbox (To QC)",
+    "parentId": 10,
+    "orderNum": 2,
+    "path": "qc-inbox",
+    "component": "qc/SamplingPage",
+    "menuType": "C",
+    "perms": "qc:inbox:list",
+    "icon": null,
+    "visible": 1,
+    "createdAt": "2025-12-10T23:08:15.704505",
+    "children": []
+    },
+    {
+    "menuId": 151,
+    "menuName": "Delete",
+    "parentId": 15,
+    "orderNum": 0,
+    "path": "qc-inbox",
+    "component": "qc/SamplingPage",
+    "menuType": "F",
+    "perms": "qc:inbox:delete",
+    "icon": null,
+    "visible": 0,
+    "createdAt": "2025-12-10T23:08:15.704505",
+    "children": []
+    }
+]
+```
+
+**Note**: 
+1. Returns **flat list**, NOT tree structure.
+2. Includes **all** menus (Visible, Hidden, and Button permissions).
+3. Used by Role Management to build the complete permission selection tree.
+
+---
+
+### 3.3 Role Management APIs
+
+#### GET `/api/role/list`
+**Purpose**: Get all roles with their menu permissions.
+**Response**:
+```json
+[
+  {
+    "roleId": "29adfeab-0e5d-48ab-85db-64800622053d",
+    "roleName": "Admin",
+    "roleDesc": "Administrator full access",
+    "status": 1,
+    "menuIds": [1, 2, 3, 10, 11] // List of assigned menu IDs
   }
 ]
 ```
 
-**Note**: Returns flat list, not tree structure
+#### POST `/api/role`
+**Purpose**: Create a new role.
+**Request**:
+```json
+{
+  "roleName": "QC Team Lead",
+  "roleDesc": "QC Team Lead permissions",
+  "menuIds": [1, 10, 12]
+}
+```
+
+#### PUT `/api/role/{id}`
+**Purpose**: Update role details and permissions.
+**Request**:
+```json
+{
+  "roleName": "QC Team Lead",
+  "roleDesc": "QC Team Lead permissions",
+  "menuIds": [1, 10, 12, 13] // Updated list replaces old one
+}
+```
+
+#### DELETE `/api/role/{id}`
+**Purpose**: Delete a role (only if no users assigned).
+
+---
+
+### 3.4 Process Management APIs
+
+#### GET `/api/process/list`
+**Purpose**: Get all processes.
+**Response**:
+```json
+[
+  {
+    "id": "29adfeab-0e5d-48ab-85db-64800622053d",
+    "business": {
+      "id": "29adfeab-0e5d-48ab-85db-64800622053d",
+      "businessCode": "COL",
+      "businessName": "Collection Business Unit"
+    },
+    "procCode": "COL -- NHI25 -- Collection China Shanghai",
+    "procAid": "NHI25",
+    "procName": "Collection China Shanghai",
+    "qltyTarget": 95,
+    "status": "Active"
+  }
+]
+```
+
+**Note**: `procCode` is a computed field (Business Code + Process Aid + Process Name), not stored in DB.
+
+#### POST `/api/process`
+**Purpose**: Create a new process.
+**Request**:
+```json
+{
+  "businessId": "29adfeab-0e5d-48ab-85db-64800622053d",
+  "procAid": "NHI25",
+  "procName": "Collection China Shanghai",
+  "qltyTarget": 95,
+  "status": "Active"
+}
+```
+
+#### PUT `/api/process/{id}`
+**Purpose**: Update process details.
+**Request**:
+```json
+{
+  "businessId": "29adfeab-0e5d-48ab-85db-64800622053d",
+  "procAid": "NHI25",
+  "procName": "Collection China Shanghai (Updated)",
+  "qltyTarget": 98,
+  "status": "Inactive"
+}
+```
+
+#### DELETE `/api/process/{id}`
+**Purpose**: Delete a process (only if no users assigned).
+
+---
+
+### 3.5 User Management APIs
+
+#### GET `/api/user/list`
+**Purpose**: Get all users with their details.
+**Query Parameters**:
+- `staffId` (optional): Filter by Staff ID
+- `managerId` (optional): Filter by Line Manager ID
+**Response**:
+```json
+[
+  {
+    "id": "29adfeab-0e5d-48ab-85db-64800622053d",
+    "name": "Alice Staff",
+    "role": "Staff",
+    "lineManagerId": "29adfeab-0e5d-48ab-85db-648006220531",
+    "processes": ["PROC-001", "PROC-002"], // Assigned Process IDs
+    "status": 1
+  }
+]
+```
+
+#### POST `/api/user`
+**Purpose**: Create a new user.
+**Request**:
+```json
+{
+  "staffId": "40001",
+  "name": "David Staff",
+  "role": "Staff",
+  "lineManagerId": "29adfeab-0e5d-48ab-85db-648006220531",
+  "processes": ["PROC-001", "PROC-002"]
+}
+```
+
+#### PUT `/api/user/{id}`
+**Purpose**: Update user information.
+**Request**:
+```json
+{
+  "id": "29adfeab-0e5d-48ab-85db-64800622053d",
+  "staffId": "40001",
+  "name": "Alice Cooper",
+  "role": "M1",
+  "lineManagerId": "29adfeab-0e5d-48ab-85db-648006220531",
+  "processes": ["PROC-001", "PROC-003"]
+}
+```
+
+#### DELETE `/api/user/{id}`
+**Purpose**: Soft delete/deactivate a user.
+
+---
+
+### 3.6 Business Management APIs
+
+#### GET `/api/business/list`
+**Purpose**: Get all business units (for dropdowns).
+**Response**:
+```json
+[
+  {
+    "id": "29adfeab-0e5d-48ab-85db-64800622053d",
+    "businessCode": "COLLECTION",
+    "businessName": "Collection Business Unit",
+    "status": 1
+  }
+]
+```
+
+#### POST `/api/business`
+**Purpose**: Create a new business unit.
+**Request**:
+```json
+{
+  "businessCode": "COLLECTION",
+  "businessName": "Collection Business Unit",
+  "status": 1
+}
+```
+
+#### DELETE `/api/business/{id}`
+**Purpose**: Delete a business unit.
 
 ---
 
@@ -375,6 +595,39 @@ System Settings (L1)
       ├─ User List (L3)
       └─ Add User (L3)
 ```
+
+### 4.2.1 Adding Button Permissions (Granular Control)
+
+To control specific buttons (e.g., "Delete", "Export") within a page, add them as **Function (F)** type menus. They are children of the page menu but are set to be **invisible** in the navigation.
+
+**Example**: Add "Delete" and "Export" buttons to "User List" page (Menu ID: 101)
+
+```sql
+-- 1. "Delete" Button Permission
+INSERT INTO sys_menu (menu_name, parent_id, order_num, menu_type, perms, visible)
+VALUES ('Delete User', 101, 1, 'F', 'user:delete', 0); -- Visible=0 (Hidden)
+
+-- 2. "Export" Button Permission
+INSERT INTO sys_menu (menu_name, parent_id, order_num, menu_type, perms, visible)
+VALUES ('Export Data', 101, 2, 'F', 'user:export', 0);
+```
+
+**Result Structure with Permissions**:
+```
+System Settings (Directory)
+  └─ User Management (Page)
+      ├─ [Visible] User List (Page View) - perms: "user:list"
+      ├─ [Hidden]  Delete User (Button)  - perms: "user:delete"
+      └─ [Hidden]  Export User (Button)  - perms: "user:export"
+```
+
+**Usage**:
+- **Sidebar**: Only shows "System Settings > User Management".
+- **Role Assignment**: Admin can check "Delete User", while Staff only checks "User List".
+- **Frontend Code**: 
+  ```tsx
+  {hasPerm('user:delete') && <Button>Delete</Button>}
+  ```
 
 ### 4.3 Complete Role Configuration Example
 
@@ -605,57 +858,53 @@ public class SysMenuController {
 
 ### 6.1 Store Setup (Zustand)
 
+### 6.1 Store Setup (Zustand)
+
 ```typescript
-interface AppState {
-    token: string | null;
-    isAuthenticated: boolean;
-    currentUser: User | null;
-    menuTree: MenuItem[];
-    
-    login: (username: string) => Promise<void>;
-    logout: () => void;
+// Core Interfaces matching backend entities
+export interface SysMenu {
+    menuId: number;
+    menuName: string;
+    parentId: number;
+    orderNum: number;
+    path: string;
+    component?: string;
+    menuType: 'D' | 'C' | 'F'; 
+    visible: number;
+    children?: SysMenu[];
 }
 
-export const useAppStore = create<AppState>((set) => ({
-    token: localStorage.getItem('token'),
-    isAuthenticated: !!localStorage.getItem('token'),
-    currentUser: null,
-    menuTree: [],
+export interface RoleDefinition {
+    id: string;
+    roleKey: string;
+    roleName: string;
+    menuIds: number[]; // Critical: Link to menus via ID
+    status: 'Active' | 'Inactive';
+}
+
+export interface Process {
+    id: string;
+    procCode: string;
+    procAid: string;
+    procName: string;
+    businessId: string;
+    qltyTarget: number;
+    status: 'Active' | 'Inactive';
+}
+
+interface AppState {
+    currentUser: User | null;
+    menuList: SysMenu[]; // Flat list from API
+    roleDefinitions: RoleDefinition[];
+    processList: Process[];
     
-    login: async (username) => {
-        // 1. Login
-        const { token } = await authApi.login({ username, password: 'password123' });
-        localStorage.setItem('token', token);
-        
-        // 2. Get user info
-        const userInfo = await authApi.getUserInfo(username);
-        
-        // 3. Get menus (tree structure)
-        const menus = await menuApi.getRouters(username);
-        
-        // 4. Extract role from roles array
-        const roleKey = userInfo.roles?.[0]?.roleKey;
-        const role = normalizeRole(roleKey);
-        
-        // 5. Set state
-        set({ 
-            token, 
-            isAuthenticated: true, 
-            currentUser: { ...userInfo, role },
-            menuTree: menus 
-        });
-    },
-    
-    logout: () => {
-        localStorage.removeItem('token');
-        set({ 
-            token: null, 
-            isAuthenticated: false, 
-            currentUser: null, 
-            menuTree: [] 
-        });
-    }
-}));
+    // Actions
+    login: (username: string) => Promise<void>;
+    // ... CRUD actions for Roles, Processes
+}
+
+// Store logic simplifies tree building on frontend for some views (Role mgmt),
+// but relies on Backend for user menu navigation tree.
 ```
 
 ### 6.2 Menu Rendering (MainLayout)
