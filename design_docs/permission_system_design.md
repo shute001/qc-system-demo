@@ -359,7 +359,7 @@ GET /api/menu/user/e277662d-428f-4030-84d4-f167c8a4610f
     "roleName": "Admin",
     "roleDesc": "Administrator full access",
     "status": 1,
-    "menuIds": [1, 2, 3, 10, 11] // List of assigned menu IDs
+    "menuIds": [1, 2, 3, 10, 11] // List of assigned menu IDs, exposed via @JsonProperty getter
   }
 ]
 ```
@@ -577,7 +577,7 @@ RETURNING menu_id; -- Returns: 100
 
 -- Level 2: Sub-category
 INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, menu_type, visible)
-VALUES ('User Management', 100, 1, 'users', 'settings/UserManagement', 'C', 1)
+VALUES ('User Management', 100, 1, 'team-structure', 'TeamManagement', 'C', 1)
 RETURNING menu_id; -- Returns: 101
 
 -- Level 3: Specific features
@@ -754,6 +754,12 @@ public class SysRole {
         inverseJoinColumns = @JoinColumn(name = "menu_id")
     )
     private Set<SysMenu> menus = new HashSet<>();
+
+    // Computed property to expose menu IDs in JSON response
+    @JsonProperty("menuIds")
+    public Set<Long> getMenuIds() {
+        // ... implementation
+    }
 }
 ```
 
@@ -791,6 +797,17 @@ private List<SysMenu> buildMenuTree(List<SysMenu> flatList) {
     sortMenusByOrder(roots);
     
     return roots;
+}
+
+/**
+ * Retrieves menus by IDs and ensures all parent/ancestor menus are included.
+ * Robustness Fix: Handles cases where user has child permission but missing parent.
+ */
+public List<SysMenu> getMenusWithAncestors(Set<Long> menuIds) {
+    // 1. Fetch all reference menus
+    // 2. Walk up the tree for each assigned menuId
+    // 3. Add any missing parents to the result set
+    // 4. Return complete list including ancestors
 }
 
 /**
