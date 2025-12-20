@@ -74,7 +74,7 @@ erDiagram
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| `menu_id` | BIGSERIAL | PRIMARY KEY | Auto-increment menu ID |
+| `id` | BIGSERIAL | PRIMARY KEY | Auto-increment menu ID |
 | `menu_name` | VARCHAR(50) | NOT NULL | Menu label (e.g., "Dashboard") |
 | `parent_id` | BIGINT | DEFAULT 0 | Parent menu ID (0 = root level) |
 | `order_num` | INTEGER | DEFAULT 0 | Display order (ascending) |
@@ -115,8 +115,8 @@ erDiagram
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY | Unique ID |
-| `business_code` | VARCHAR(50) | UNIQUE, NOT NULL | Business unit code (e.g., COL, UWS, etc.) |
-| `business_name` | VARCHAR(100) | NOT NULL | Business unit name (e.g., Collections, etc.) |
+| `biz_code` | VARCHAR(50) | UNIQUE, NOT NULL | Business unit code (e.g., COL, UWS, etc.) |
+| `biz_name` | VARCHAR(100) | NOT NULL | Business unit name (e.g., Collections, etc.) |
 | `status` | INTEGER | DEFAULT 1 | 1=Active, 0=Disabled |
 | `created_at` | TIMESTAMP | DEFAULT now() | Creation timestamp |
 
@@ -170,20 +170,20 @@ GET /api/auth/info?username=admin
   "id": "e277662d-428f-4030-84d4-f167c8a4610f",
   "staffId": "40001",
   "staffName": "admin",
+  "email": "admin@example.com",
   "status": 1,
   "managerId": "e277662d-428f-4030-84d4-f167c8a46101",
-  "createdAt": "2025-12-10T19:49:16.495564",
-  "updatedAt": "2025-12-10T19:49:16.495564",
+  "managerName": "Super Manager",
   "roles": [
     {
       "roleId": "29adfeab-0e5d-48ab-85db-64800622053d",
       "roleName": "Admin",
       "roleDesc": "Administrator",
       "status": 1,
-      "createdAt": "2025-12-10T19:49:16.495564",
-      "updatedAt": "2025-12-10T19:49:16.495564"
+      "menuIds": [1, 10, 11]
     }
-  ]
+  ],
+  "processes": []
 }
 ```
 
@@ -215,55 +215,51 @@ GET /api/menu/user/e277662d-428f-4030-84d4-f167c8a4610f
     "menuId": 1,
     "menuName": "Dashboard",
     "parentId": 0,
-    "orderNum": 1,
+    "sortOrder": 1,
     "path": "/dashboard",
     "component": "Dashboard",
     "menuType": "C",
     "perms": "dashboard:view",
     "icon": "DashboardOutlined",
     "visible": 1,
-    "createdAt": "2025-12-10T19:49:16.495564",
     "children": []
   },
   {
     "menuId": 10,
     "menuName": "QC Management",
     "parentId": 0,
-    "orderNum": 3,
+    "sortOrder": 3,
     "path": "/qc-module",
     "component": null,
     "menuType": "D",
     "perms": null,
     "icon": "FileProtectOutlined",
     "visible": 1,
-    "createdAt": "2025-12-10T19:49:16.495564",
     "children": [
       {
         "menuId": 11,
         "menuName": "Sampling",
         "parentId": 10,
-        "orderNum": 1,
+        "sortOrder": 1,
         "path": "sampling",
         "component": "qc/Sampling",
         "menuType": "C",
         "perms": "qc:sampling:list",
         "icon": null,
         "visible": 1,
-        "createdAt": "2025-12-10T19:49:16.495564",
         "children": []
       },
       {
         "menuId": 15,
         "menuName": "Inbox (To QC)",
         "parentId": 10,
-        "orderNum": 2,
+        "sortOrder": 2,
         "path": "qc-inbox",
         "component": "qc/SamplingPage",
         "menuType": "C",
         "perms": "qc:inbox:list",
         "icon": null,
         "visible": 1,
-        "createdAt": "2025-12-10T23:08:15.704505",
         "children": []
       }
     ]
@@ -275,7 +271,7 @@ GET /api/menu/user/e277662d-428f-4030-84d4-f167c8a4610f
 - ✅ Returns **hierarchical tree structure** (not flat list)
 - ✅ Backend builds tree using O(n) algorithm
 - ✅ Menus already **filtered by user's roles**
-- ✅ Sorted by `order_num` (recursive)
+- ✅ Sorted by `sortOrder` (recursive)
 - ✅ Supports **unlimited depth** (2, 3, 4+ levels)
 - `children` array contains nested menus
 
@@ -283,7 +279,7 @@ GET /api/menu/user/e277662d-428f-4030-84d4-f167c8a4610f
 1. Get user's role IDs from `sys_user_role`
 2. Query menus assigned to those roles from `sys_role_menu`
 3. Build hierarchical tree from flat list
-4. Sort recursively by `order_num`
+4. Sort recursively by `sortOrder`
 5. Return tree structure
 
 ---
@@ -299,42 +295,38 @@ GET /api/menu/user/e277662d-428f-4030-84d4-f167c8a4610f
     "menuId": 10,
     "menuName": "QC Management",
     "parentId": 0,
-    "orderNum": 3,
+    "sortOrder": 3,
     "path": "/qc-module",
     "component": null,
     "menuType": "D",
-    "perms": null,
     "icon": "FileProtectOutlined",
     "visible": 1,
-    "createdAt": "2025-12-10T19:49:16.495564",
     "children": []
     },
     {
     "menuId": 15,
     "menuName": "Inbox (To QC)",
     "parentId": 10,
-    "orderNum": 2,
+    "sortOrder": 2,
     "path": "qc-inbox",
     "component": "qc/SamplingPage",
     "menuType": "C",
     "perms": "qc:inbox:list",
     "icon": null,
     "visible": 1,
-    "createdAt": "2025-12-10T23:08:15.704505",
     "children": []
     },
     {
     "menuId": 151,
     "menuName": "Delete",
     "parentId": 15,
-    "orderNum": 0,
+    "sortOrder": 0,
     "path": "qc-inbox",
     "component": "qc/SamplingPage",
     "menuType": "F",
     "perms": "qc:inbox:delete",
     "icon": null,
     "visible": 0,
-    "createdAt": "2025-12-10T23:08:15.704505",
     "children": []
     }
 ]
@@ -409,7 +401,7 @@ GET /api/menu/user/e277662d-428f-4030-84d4-f167c8a4610f
     "procAid": "NHI25",
     "procName": "Collection China Shanghai",
     "qltyTarget": 95,
-    "status": "Active"
+    "status": 1
   }
 ]
 ```
@@ -425,7 +417,7 @@ GET /api/menu/user/e277662d-428f-4030-84d4-f167c8a4610f
   "procAid": "NHI25",
   "procName": "Collection China Shanghai",
   "qltyTarget": 95,
-  "status": "Active"
+  "status": 1
 }
 ```
 
@@ -438,7 +430,7 @@ GET /api/menu/user/e277662d-428f-4030-84d4-f167c8a4610f
   "procAid": "NHI25",
   "procName": "Collection China Shanghai (Updated)",
   "qltyTarget": 98,
-  "status": "Inactive"
+  "status": 0
 }
 ```
 
@@ -454,15 +446,51 @@ GET /api/menu/user/e277662d-428f-4030-84d4-f167c8a4610f
 **Query Parameters**:
 - `staffId` (optional): Filter by Staff ID
 - `managerId` (optional): Filter by Line Manager ID
+**Response** (200 OK - Paginated):
+```json
+{
+  "content": [
+    {
+      "id": "29adfeab-0e5d-48ab-85db-64800622053d",
+      "staffId": "40001",
+      "staffName": "Alice Staff",
+      "email": "alice@example.com",
+      "status": 1,
+      "managerId": "29adfeab-0e5d-48ab-85db-648006220531",
+      "managerName": "Super Manager",
+      "roles": [
+        {
+          "roleId": "29adfeab-0e5d-48ab-85db-64800622053a",
+          "roleName": "Staff",
+          "roleDesc": "Staff member",
+          "status": 1,
+          "menuIds": [10, 11]
+        }
+      ],
+      "processes": [
+        {
+          "id": "proc-uuid-1",
+          "procName": "Collection China"
+        }
+      ]
+    }
+  ],
+  "totalElements": 1,
+  "totalPages": 1,
+  "size": 10,
+  "number": 0
+}
+```
+
+#### GET `/api/user/managers`
+**Purpose**: Get all users who act as line managers.
 **Response**:
 ```json
 [
   {
-    "id": "29adfeab-0e5d-48ab-85db-64800622053d",
-    "name": "Alice Staff",
-    "role": "Staff",
-    "lineManagerId": "29adfeab-0e5d-48ab-85db-648006220531",
-    "processes": ["PROC-001", "PROC-002"], // Assigned Process IDs
+    "id": "29adfeab-0e5d-48ab-85db-648006220531",
+    "staffId": "30001",
+    "staffName": "Super Manager",
     "status": 1
   }
 ]
@@ -476,8 +504,9 @@ GET /api/menu/user/e277662d-428f-4030-84d4-f167c8a4610f
   "staffId": "40001",
   "name": "David Staff",
   "role": "Staff",
+  "status": 1,
   "lineManagerId": "29adfeab-0e5d-48ab-85db-648006220531",
-  "processes": ["PROC-001", "PROC-002"]
+  "processes": ["PROC-uuid-1", "PROC-uuid-2"]
 }
 ```
 
@@ -509,8 +538,8 @@ GET /api/menu/user/e277662d-428f-4030-84d4-f167c8a4610f
 [
   {
     "id": "29adfeab-0e5d-48ab-85db-64800622053d",
-    "businessCode": "COLLECTION",
-    "businessName": "Collection Business Unit",
+    "bizCode": "COLLECTION",
+    "bizName": "Collection Business Unit",
     "status": 1
   }
 ]
@@ -521,8 +550,8 @@ GET /api/menu/user/e277662d-428f-4030-84d4-f167c8a4610f
 **Request**:
 ```json
 {
-  "businessCode": "COLLECTION",
-  "businessName": "Collection Business Unit",
+  "bizCode": "COLLECTION",
+  "bizName": "Collection Business Unit",
   "status": 1
 }
 ```
@@ -635,9 +664,9 @@ System Settings (Directory)
 
 ```sql
 -- 1. Create role
-INSERT INTO sys_role (role_name, role_key, status)
-VALUES ('QC Manager', 'qc_manager', 1)
-RETURNING role_id; -- Returns: 4
+INSERT INTO sys_role (role_name, status)
+VALUES ('QC Manager', 1)
+RETURNING role_id; -- Returns: <UUID>
 
 -- 2. Assign menus to role
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
@@ -732,16 +761,14 @@ public class SysMenu {
 @Table(name = "sys_role")
 public class SysRole {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "role_id")
-    private Long roleId;
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(name = "id")
+    private UUID id;
     
-    @Column(name = "role_name", nullable = false)
+    @Column(name = "role_name", nullable = false, unique = true)
     private String roleName;
     
-    @Column(name = "role_key", nullable = false, unique = true)
-    private String roleKey;
-    
+    private String roleDesc;
     private Integer status;
     private LocalDateTime createdAt;
     
@@ -815,7 +842,7 @@ public List<SysMenu> getMenusWithAncestors(Set<Long> menuIds) {
  */
 private void sortMenusByOrder(List<SysMenu> menus) {
     menus.sort(Comparator.comparing(
-        SysMenu::getOrderNum,
+        SysMenu::getSortOrder,
         Comparator.nullsLast(Comparator.naturalOrder())
     ));
     
@@ -840,31 +867,28 @@ public class SysMenuController {
     @Autowired
     private SysUserService userService;
     
-    @GetMapping("/user/{username}")
-    public ResponseEntity<List<SysMenu>> getMenusForUser(
-        @PathVariable String username
-    ) {
-        SysUser user = userService.findByUsername(username)
-            .orElseThrow(() -> new NotFoundException("User not found"));
-        
-        List<SysMenu> flatMenus;
-        
-        // Admin gets all menus
-        if (user.getUserId() == 1L) {
-            flatMenus = menuService.findAll();
-        } else {
-            // Get role IDs
-            Set<Long> roleIds = user.getRoles().stream()
-                .map(SysRole::getRoleId)
-                .collect(Collectors.toSet());
-            
-            // Get menus for roles
-            flatMenus = menuService.findByRoleIds(roleIds);
-        }
-        
-        // Build tree and return
-        List<SysMenu> menuTree = buildMenuTree(flatMenus);
-        return ResponseEntity.ok(menuTree);
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<MenuResponseDTO>> getUserMenus(@PathVariable String userId) {
+        return userService.findById(UUID.fromString(userId))
+            .map(user -> {
+                List<SysMenu> flatMenus;
+                boolean isAdmin = user.getRoles().stream().anyMatch(r -> "Admin".equals(r.getRoleName()));
+                
+                if (isAdmin) {
+                    flatMenus = menuService.findAll();
+                } else {
+                    Set<Long> menuIds = user.getRoles().stream()
+                        .flatMap(r -> r.getMenus().stream())
+                        .map(SysMenu::getMenuId)
+                        .collect(Collectors.toSet());
+                    flatMenus = menuService.getMenusWithAncestors(menuIds);
+                }
+                
+                List<SysMenu> tree = menuService.buildMenuTree(flatMenus);
+                // ... map to DTOs
+                return ResponseEntity.ok(dtos);
+            })
+            .orElse(ResponseEntity.notFound().build());
     }
 }
 ```
@@ -883,20 +907,20 @@ export interface SysMenu {
     menuId: number;
     menuName: string;
     parentId: number;
-    orderNum: number;
+    sortOrder: number;
     path: string;
     component?: string;
     menuType: 'D' | 'C' | 'F'; 
-    visible: number;
+    icon?: string;
     children?: SysMenu[];
 }
 
 export interface RoleDefinition {
-    id: string;
-    roleKey: string;
+    roleId: string;
     roleName: string;
-    menuIds: number[]; // Critical: Link to menus via ID
-    status: 'Active' | 'Inactive';
+    roleDesc?: string;
+    status: number;
+    menuIds: number[];
 }
 
 export interface Process {
@@ -904,9 +928,9 @@ export interface Process {
     procCode: string;
     procAid: string;
     procName: string;
-    businessId: string;
+    bizCode: string;
     qltyTarget: number;
-    status: 'Active' | 'Inactive';
+    status: number;
 }
 
 interface AppState {
@@ -1036,14 +1060,14 @@ CREATE TABLE sys_user_role (...);
 CREATE TABLE sys_role_menu (...);
 
 -- Seed data
-INSERT INTO sys_role (role_name, role_key) VALUES
-('Administrator', 'admin'),
-('QC Manager', 'manager'),
-('QC Staff', 'staff');
+INSERT INTO sys_role (role_name, status) VALUES
+('Admin', 1),
+('QC Manager', 1),
+('QC Staff', 1);
 
 -- Create admin user
-INSERT INTO sys_user (username, password, real_name) 
-VALUES ('admin', '$2a$10$...', 'System Admin');
+INSERT INTO sys_user (staff_id, staff_name, status) 
+VALUES ('40001', 'admin', 1);
 ```
 
 ### 8.2 Complete Menu Setup (V2)
