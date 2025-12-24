@@ -114,7 +114,8 @@ paths:
       tags:
         - Menu
       summary: Get all menus (flat list for management)
-      x-permission: "sys:menu:list"
+      description: Get all menus for management
+      x-permission: "system:menu:list"
       responses:
         '200':
           description: Successful operation
@@ -136,7 +137,8 @@ paths:
       tags:
         - Role
       summary: List all roles
-      x-permission: "sys:role:list"
+      description: Get all roles with their menu permissions
+      x-permission: "system:role:list"
       responses:
         '200':
           description: Successful operation
@@ -158,7 +160,8 @@ paths:
       tags:
         - Role
       summary: Create a new role
-      x-permission: "sys:role:add"
+      description: Create a new role
+      x-permission: "system:role:add"
       requestBody:
         required: true
         content:
@@ -193,7 +196,8 @@ paths:
       tags:
         - Role
       summary: Update a role
-      x-permission: "sys:role:edit"
+      description: Update role details and permissions
+      x-permission: "system:role:edit"
       requestBody:
         required: true
         content:
@@ -221,7 +225,8 @@ paths:
       tags:
         - Role
       summary: Delete a role
-      x-permission: "sys:role:delete"
+      description: Delete a role (only if no users assigned)
+      x-permission: "system:role:delete"
       responses:
         '200':
           description: Deleted
@@ -239,7 +244,8 @@ paths:
       tags:
         - User
       summary: Get users list (paginated)
-      x-permission: "sys:user:list"
+      description: Get all users with their details (paginated)
+      x-permission: "system:user:list"
       parameters:
         - name: page
           in: query
@@ -248,6 +254,7 @@ paths:
             default: 1
         - name: pageSize
           in: query
+          description: "Page size"
           schema:
             type: integer
             default: 10
@@ -279,7 +286,8 @@ paths:
       tags:
         - User
       summary: Get all line managers
-      x-permission: "sys:user:list"
+      description: Get all users who act as line managers
+      x-permission: "system:user:list"
       responses:
         '200':
           description: List of managers
@@ -301,7 +309,8 @@ paths:
       tags:
         - User
       summary: Create user
-      x-permission: "sys:user:add"
+      description: Create a new user
+      x-permission: "system:user:add"
       requestBody:
         required: true
         content:
@@ -332,7 +341,8 @@ paths:
       tags:
         - User
       summary: Get user by ID
-      x-permission: "sys:user:view"
+      description: Get user details by ID
+      x-permission: "system:user:view"
       responses:
         '200':
           description: Successful operation
@@ -352,7 +362,8 @@ paths:
       tags:
         - User
       summary: Update user
-      x-permission: "sys:user:edit"
+      description: Update user information
+      x-permission: "system:user:edit"
       requestBody:
         required: true
         content:
@@ -380,7 +391,8 @@ paths:
       tags:
         - User
       summary: Delete user
-      x-permission: "sys:user:delete"
+      description: Soft delete/deactivate a user
+      x-permission: "system:user:delete"
       responses:
         '200':
           description: Deleted
@@ -398,7 +410,8 @@ paths:
       tags:
         - Process
       summary: List all processes
-      x-permission: "sys:process:list"
+      description: Get all processes
+      x-permission: "system:process:list"
       responses:
         '200':
           description: Successful operation
@@ -420,7 +433,8 @@ paths:
       tags:
         - Process
       summary: Create process
-      x-permission: "sys:process:add"
+      description: Create a new process
+      x-permission: "system:process:add"
       requestBody:
         required: true
         content:
@@ -455,7 +469,8 @@ paths:
       tags:
         - Process
       summary: Update process
-      x-permission: "sys:process:edit"
+      description: Update process details
+      x-permission: "system:process:edit"
       requestBody:
         required: true
         content:
@@ -483,7 +498,8 @@ paths:
       tags:
         - Process
       summary: Delete process
-      x-permission: "sys:process:delete"
+      description: Delete a process (only if no users assigned)
+      x-permission: "system:process:delete"
       responses:
         '200':
           description: Deleted
@@ -501,7 +517,8 @@ paths:
       tags:
         - Business
       summary: List all business units
-      x-permission: "sys:business:list"
+      description: Get all business units (for dropdowns)
+      x-permission: "system:business:list"
       responses:
         '200':
           description: Successful operation
@@ -523,7 +540,8 @@ paths:
       tags:
         - Business
       summary: Create business
-      x-permission: "sys:business:add"
+      description: Create a new business unit
+      x-permission: "system:business:add"
       requestBody:
         required: true
         content:
@@ -551,7 +569,8 @@ paths:
       tags:
         - Business
       summary: Delete business
-      x-permission: "sys:business:delete"
+      description: Delete a business unit
+      x-permission: "system:business:delete"
       parameters:
         - name: id
           in: path
@@ -620,7 +639,7 @@ components:
       example:
         staffId: "40001"
         staffName: "David Staff"
-        roleId: "29adfeab-0e5d-48ab-85db-64800622053d"
+        roles: ["29adfeab-0e5d-48ab-85db-64800622053d", "29adfeab-0e5d-48ab-85db-64800622053e"]
         status: 1
         lineManagerId: "29adfeab-0e5d-48ab-85db-648006220531"
         processes: ["PROC-uuid-1", "PROC-uuid-2"]
@@ -629,9 +648,11 @@ components:
           type: string
         staffName:
           type: string
-        roleId:
-          type: string
-          format: uuid
+        roles:
+          type: array
+          items:
+            type: string
+          description: "List of role id to assign to user"
         lineManagerId:
           type: string
           format: uuid

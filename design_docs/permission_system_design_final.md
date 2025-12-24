@@ -1,11 +1,11 @@
 # Permission & Menu Control System Design Document
 
-**Version**: 2.0 (Updated based on actual implementation)  
-**Last Updated**: 2025-12-11
-
 ## 1. Overview
 
 This document provides a **complete** specification for the Permission and Menu Control module of the Quality Control (QC) System. It is designed to guide developers through implementing a database-driven Role-Based Access Control (RBAC) system.
+
+**Requirements Summary**: 
+- Source: FR-A05 Access control
 
 **System Capabilities**:
 - ✅ Dynamic menu rendering based on user roles
@@ -13,7 +13,6 @@ This document provides a **complete** specification for the Permission and Menu 
 - ✅ Role-based access control
 - ✅ Efficient tree-building algorithm (O(n))
 - ✅ Clean API separation (Auth vs Menu)
-- ✅ **Visual UI Guide & Interaction Flows** (New)
 
 **Tech Stack**:
 - **Frontend**: React.js + TypeScript + Ant Design

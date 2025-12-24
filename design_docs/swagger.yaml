@@ -122,7 +122,7 @@ paths:
         - Menu
       summary: Get all menus (flat list for management)
       description: Get all menus for management
-      x-permission: "sys:menu:list"
+      x-permission: "system:menu:list"
       responses:
         '200':
           description: Successful operation
@@ -145,7 +145,7 @@ paths:
         - Role
       summary: List all roles
       description: Get all roles with their menu permissions
-      x-permission: "sys:role:list"
+      x-permission: "system:role:list"
       responses:
         '200':
           description: Successful operation
@@ -168,7 +168,7 @@ paths:
         - Role
       summary: Create a new role
       description: Create a new role
-      x-permission: "sys:role:add"
+      x-permission: "system:role:add"
       requestBody:
         required: true
         content:
@@ -204,7 +204,7 @@ paths:
         - Role
       summary: Update a role
       description: Update role details and permissions
-      x-permission: "sys:role:edit"
+      x-permission: "system:role:edit"
       requestBody:
         required: true
         content:
@@ -233,7 +233,7 @@ paths:
         - Role
       summary: Delete a role
       description: Delete a role (only if no users assigned)
-      x-permission: "sys:role:delete"
+      x-permission: "system:role:delete"
       responses:
         '200':
           description: Deleted
@@ -252,7 +252,7 @@ paths:
         - User
       summary: Get users list (paginated)
       description: Get all users with their details (paginated)
-      x-permission: "sys:user:list"
+      x-permission: "system:user:list"
       parameters:
         - name: page
           in: query
@@ -261,6 +261,7 @@ paths:
             default: 1
         - name: pageSize
           in: query
+          description: "Page size"
           schema:
             type: integer
             default: 10
@@ -293,7 +294,7 @@ paths:
         - User
       summary: Get all line managers
       description: Get all users who act as line managers
-      x-permission: "sys:user:list"
+      x-permission: "system:user:list"
       responses:
         '200':
           description: List of managers
@@ -316,7 +317,7 @@ paths:
         - User
       summary: Create user
       description: Create a new user
-      x-permission: "sys:user:add"
+      x-permission: "system:user:add"
       requestBody:
         required: true
         content:
@@ -348,7 +349,7 @@ paths:
         - User
       summary: Get user by ID
       description: Get user details by ID
-      x-permission: "sys:user:view"
+      x-permission: "system:user:view"
       responses:
         '200':
           description: Successful operation
@@ -369,7 +370,7 @@ paths:
         - User
       summary: Update user
       description: Update user information
-      x-permission: "sys:user:edit"
+      x-permission: "system:user:edit"
       requestBody:
         required: true
         content:
@@ -398,7 +399,7 @@ paths:
         - User
       summary: Delete user
       description: Soft delete/deactivate a user
-      x-permission: "sys:user:delete"
+      x-permission: "system:user:delete"
       responses:
         '200':
           description: Deleted
@@ -417,7 +418,7 @@ paths:
         - Process
       summary: List all processes
       description: Get all processes
-      x-permission: "sys:process:list"
+      x-permission: "system:process:list"
       responses:
         '200':
           description: Successful operation
@@ -440,7 +441,7 @@ paths:
         - Process
       summary: Create process
       description: Create a new process
-      x-permission: "sys:process:add"
+      x-permission: "system:process:add"
       requestBody:
         required: true
         content:
@@ -476,7 +477,7 @@ paths:
         - Process
       summary: Update process
       description: Update process details
-      x-permission: "sys:process:edit"
+      x-permission: "system:process:edit"
       requestBody:
         required: true
         content:
@@ -505,7 +506,7 @@ paths:
         - Process
       summary: Delete process
       description: Delete a process (only if no users assigned)
-      x-permission: "sys:process:delete"
+      x-permission: "system:process:delete"
       responses:
         '200':
           description: Deleted
@@ -524,7 +525,7 @@ paths:
         - Business
       summary: List all business units
       description: Get all business units (for dropdowns)
-      x-permission: "sys:business:list"
+      x-permission: "system:business:list"
       responses:
         '200':
           description: Successful operation
@@ -547,7 +548,7 @@ paths:
         - Business
       summary: Create business
       description: Create a new business unit
-      x-permission: "sys:business:add"
+      x-permission: "system:business:add"
       requestBody:
         required: true
         content:
@@ -576,7 +577,7 @@ paths:
         - Business
       summary: Delete business
       description: Delete a business unit
-      x-permission: "sys:business:delete"
+      x-permission: "system:business:delete"
       parameters:
         - name: id
           in: path
@@ -645,7 +646,7 @@ components:
       example:
         staffId: "40001"
         staffName: "David Staff"
-        roleId: "29adfeab-0e5d-48ab-85db-64800622053d"
+        roles: ["29adfeab-0e5d-48ab-85db-64800622053d", "29adfeab-0e5d-48ab-85db-64800622053e"]
         status: 1
         lineManagerId: "29adfeab-0e5d-48ab-85db-648006220531"
         processes: ["PROC-uuid-1", "PROC-uuid-2"]
@@ -654,9 +655,11 @@ components:
           type: string
         staffName:
           type: string
-        roleId:
-          type: string
-          format: uuid
+        roles:
+          type: array
+          items:
+            type: string
+          description: "List of role id to assign to user"
         lineManagerId:
           type: string
           format: uuid
