@@ -1127,6 +1127,88 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 
 ---
 
+## 11. 字段级权限设计 (Field-Level Permission Design)
+
+针对同一页面在不同状态下，不同角色可编辑项不一致的需求（例如 QC 数据详情页），采用 **“代码定义字段组 (Field Groups) + 数据库关联权限点 (F 菜单)”** 的折中方案。
+
+### 11.1 设计核心：两道锁机制
+
+1.  **第一道锁 (前端控制)**：
+    - **原理**：前端根据“用户拥有的权限码”和“记录当前状态”动态禁用或隐藏字段。
+    - **目的**：提升用户体验，防止误触。
+2.  **第二道锁 (后端校验)**：
+    - **原理**：后端在 Update 接口中，根据业务逻辑校验当前角色是否有权修改提交的字段。
+    - **目的**：终极安全防线，防止通过脚本或工具绕过前端限制。
+
+### 11.2 具体实现示例 (以 QC 评价为例)
+
+#### 1. 数据库配置 (sys_menu)
+在 `sys_menu` 表中为“QC 详情页”创建功能权限点（F）：
+
+| menuId | menuName | parentId | perms | 说明 |
+| :--- | :--- | :--- | :--- | :--- |
+| 1001 | 编辑-评分评语 | 100 (QC详情页) | `qc:record:eval:edit` | 控制 M1 的评分字段组 |
+| 1002 | 编辑-员工回复 | 100 (QC详情页) | `qc:record:staff:edit` | 控制 Staff 的确认字段组 |
+
+#### 2. 前端字段组映射
+在前端代码中定义业务逻辑矩阵：
+
+```tsx
+const FIELD_GROUPS = {
+  MANAGEMENT: {
+    perms: 'qc:record:eval:edit',
+    validStatus: ['Draft', 'Dispute'], // 仅在草稿或申诉状态可改
+    fields: ['score', 'result', 'm1Comments']
+  },
+  STAFF_CONFIRM: {
+    perms: 'qc:record:staff:edit',
+    validStatus: ['Wait Staff Confirm'], // 仅在待确认状态可改
+    fields: ['staffComments', 'disputeReason']
+  }
+};
+```
+
+#### 3. 后端安全性校验 (伪代码)
+```java
+public void updateRecord(QCUpdateDTO dto) {
+    QCRecord record = repository.findById(dto.getId());
+    // 检查评分修改权限
+    if (dto.getScore() != null && !user.hasPerm("qc:record:eval:edit")) {
+        throw new AccessDeniedException("无权修改评分");
+    }
+    // 检查业务状态匹配
+    if (!"Draft".equals(record.getStatus()) && dto.getScore() != null) {
+        throw new AccessDeniedException("当前状态不可修改评分");
+    }
+}
+```
+
+---
+
+## 12. 非菜单 API 权限配置
+
+对于没有对应菜单界面的后台 API（如 `/api/auth/info`），采取以下分类管理策略：
+
+### 12.1 类别 A：基础/公共 API
+- **例子**：`/api/auth/info` (获取登录信息), `/api/auth/logout`。
+- **配置**：**Login Required Only**。
+- **说明**：只要用户已登录且 Token 有效，即可访问。后端无需检查特定的权限字符串。
+
+### 12.2 类别 B：功能配套 API
+- **例子**：`/api/user/managers` (下拉列表数据), `/api/role/list` (供角色分配)。
+- **配置**：**Map to 'F' Type menu**。
+- **说明**：将该权限码挂载到相关页面的菜单节点下，作为功能权限。只有拥有该页面操作权的角色才能调用对应的数据 API。
+
+---
+
+## 13. 总结：RBAC 的精髓
+
+**解耦角色与逻辑**：
+不要在代码中使用 `if (role === 'Staff')`。始终使用 `if (hasPermission('qc:edit'))`。
+这样管理员就可以在“系统管理”页面自由创建新角色（如 `Temporary_Staff`）并勾选权限点，而无需开发人员修改任何代码。
+
+---
+
 ## Appendix A: Complete Menu Configuration Example
 
 See database migration file `V2__add_complete_menus.sql` for production-ready example with all current menus configured.

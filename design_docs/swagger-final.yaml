@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
-  title: QC System - Permission & Menu Control API
-  description: API documentation for the Quality Control System's RBAC and Menu management module.
+  title: Smart Ops API
+  description: API documentation for the Smart Ops platform.
   version: 1.0.0
 servers:
   - url: http://localhost:8080
@@ -13,14 +13,7 @@ paths:
       tags:
         - Authentication
       summary: Get current user info and roles
-      description: Get current user information and roles
       x-permission: "authenticated"
-      parameters:
-        - name: username
-          in: query
-          required: true
-          schema:
-            type: string
       responses:
         '200':
           description: Successful operation
@@ -121,7 +114,6 @@ paths:
       tags:
         - Menu
       summary: Get all menus (flat list for management)
-      description: Get all menus for management
       x-permission: "sys:menu:list"
       responses:
         '200':
@@ -144,7 +136,6 @@ paths:
       tags:
         - Role
       summary: List all roles
-      description: Get all roles with their menu permissions
       x-permission: "sys:role:list"
       responses:
         '200':
@@ -167,7 +158,6 @@ paths:
       tags:
         - Role
       summary: Create a new role
-      description: Create a new role
       x-permission: "sys:role:add"
       requestBody:
         required: true
@@ -203,7 +193,6 @@ paths:
       tags:
         - Role
       summary: Update a role
-      description: Update role details and permissions
       x-permission: "sys:role:edit"
       requestBody:
         required: true
@@ -232,7 +221,6 @@ paths:
       tags:
         - Role
       summary: Delete a role
-      description: Delete a role (only if no users assigned)
       x-permission: "sys:role:delete"
       responses:
         '200':
@@ -251,7 +239,6 @@ paths:
       tags:
         - User
       summary: Get users list (paginated)
-      description: Get all users with their details (paginated)
       x-permission: "sys:user:list"
       parameters:
         - name: page
@@ -292,7 +279,6 @@ paths:
       tags:
         - User
       summary: Get all line managers
-      description: Get all users who act as line managers
       x-permission: "sys:user:list"
       responses:
         '200':
@@ -315,7 +301,6 @@ paths:
       tags:
         - User
       summary: Create user
-      description: Create a new user
       x-permission: "sys:user:add"
       requestBody:
         required: true
@@ -347,7 +332,6 @@ paths:
       tags:
         - User
       summary: Get user by ID
-      description: Get user details by ID
       x-permission: "sys:user:view"
       responses:
         '200':
@@ -368,7 +352,6 @@ paths:
       tags:
         - User
       summary: Update user
-      description: Update user information
       x-permission: "sys:user:edit"
       requestBody:
         required: true
@@ -397,7 +380,6 @@ paths:
       tags:
         - User
       summary: Delete user
-      description: Soft delete/deactivate a user
       x-permission: "sys:user:delete"
       responses:
         '200':
@@ -416,7 +398,6 @@ paths:
       tags:
         - Process
       summary: List all processes
-      description: Get all processes
       x-permission: "sys:process:list"
       responses:
         '200':
@@ -439,7 +420,6 @@ paths:
       tags:
         - Process
       summary: Create process
-      description: Create a new process
       x-permission: "sys:process:add"
       requestBody:
         required: true
@@ -475,7 +455,6 @@ paths:
       tags:
         - Process
       summary: Update process
-      description: Update process details
       x-permission: "sys:process:edit"
       requestBody:
         required: true
@@ -504,7 +483,6 @@ paths:
       tags:
         - Process
       summary: Delete process
-      description: Delete a process (only if no users assigned)
       x-permission: "sys:process:delete"
       responses:
         '200':
@@ -523,7 +501,6 @@ paths:
       tags:
         - Business
       summary: List all business units
-      description: Get all business units (for dropdowns)
       x-permission: "sys:business:list"
       responses:
         '200':
@@ -546,7 +523,6 @@ paths:
       tags:
         - Business
       summary: Create business
-      description: Create a new business unit
       x-permission: "sys:business:add"
       requestBody:
         required: true
@@ -575,7 +551,6 @@ paths:
       tags:
         - Business
       summary: Delete business
-      description: Delete a business unit
       x-permission: "sys:business:delete"
       parameters:
         - name: id
