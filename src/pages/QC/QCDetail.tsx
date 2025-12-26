@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Row, Col, Typography, Descriptions, Divider, Form, Radio, Input, InputNumber, Button, Space, message, Select, Tabs, Tag, Alert } from 'antd';
+import { Card, Row, Col, Typography, Descriptions, Divider, Form, Radio, Input, InputNumber, Button, message, Select, Tabs, Tag, Alert } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined, CheckOutlined, StopOutlined } from '@ant-design/icons';
 import { useAppStore } from '../../store/useAppStore';
 import dayjs from 'dayjs';
@@ -60,6 +60,8 @@ const QCDetail: React.FC = () => {
 
     if (!activeCase) return null;
 
+    if (!currentUser) return null;
+
     // --- Role & Status Logic ---
     const isPendingQC = activeCase.status === 'Pending QC';
     const isDraft = activeCase.status === 'Draft';
@@ -67,8 +69,12 @@ const QCDetail: React.FC = () => {
     const isWaitConfirm = activeCase.status === 'Wait Staff Confirm';
     const isCompleted = activeCase.status === 'Completed';
 
-    const isM1OrAdmin = ['M1', 'M2', 'Admin'].includes(currentUser.role);
-    const isStaff = currentUser.role === 'Staff';
+    const roles = currentUser.roles.map(r => r.roleName);
+    const isAdmin = roles.includes('Admin');
+    const isM1 = roles.includes('M1');
+    const isM2 = roles.includes('M2');
+    const isM1OrAdmin = isAdmin || isM1 || isM2;
+    const isStaff = roles.includes('Staff');
     const isOwner = activeCase.agentId === currentUser.id;
 
     // Can M1 Edit?

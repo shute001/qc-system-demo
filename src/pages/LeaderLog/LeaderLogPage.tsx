@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
-import { Card, Table, Button, Form, Input, Modal, DatePicker, message, List, Avatar } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Form, Input, Modal, DatePicker, message } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 import { useAppStore } from '../../store/useAppStore';
 import type { LeaderLog } from '../../store/useAppStore';
 
 const { TextArea } = Input;
 
 const LeaderLogPage: React.FC = () => {
-    const { leaderLogs, addLeaderLog } = useAppStore();
+    const { leaderLogs, addLeaderLog, currentUser } = useAppStore();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [form] = Form.useForm();
+
+    if (!currentUser) return null;
+
+    const roleNames = currentUser.roles.map(r => r.roleName);
+    const isManager = roleNames.some(rn => ['Admin', 'M1', 'M2'].includes(rn));
 
     const handleSubmit = (values: any) => {
         const newLog: LeaderLog = {
@@ -37,7 +42,7 @@ const LeaderLogPage: React.FC = () => {
         <div className="space-y-6">
             <Card
                 title="Leader's Meeting Logs"
-                extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>New Record</Button>}
+                extra={isManager && <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>New Record</Button>}
                 bordered={false}
                 className="shadow-sm"
             >

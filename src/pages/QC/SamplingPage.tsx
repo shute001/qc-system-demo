@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Table, Card, Form, Select, DatePicker, Button, Space, Tag, message, Tabs, Badge } from 'antd';
-import { SearchOutlined, ReloadOutlined, PlusOutlined, AuditOutlined, ExclamationCircleOutlined, CheckCircleOutlined, EditOutlined, HistoryOutlined } from '@ant-design/icons';
+import { Table, Card, Select, Button, Space, Tag, message, Tabs, Badge } from 'antd';
+import { ReloadOutlined, PlusOutlined, AuditOutlined, ExclamationCircleOutlined, CheckCircleOutlined, EditOutlined, HistoryOutlined, FileProtectOutlined } from '@ant-design/icons';
 import { useAppStore } from '../../store/useAppStore';
 import type { QCRecord } from '../../store/useAppStore';
 import type { ColumnsType } from 'antd/es/table';
@@ -31,38 +31,22 @@ interface SamplingPageProps {
 }
 
 const SamplingPage: React.FC<SamplingPageProps> = ({ initialTab }) => {
-    const { qcRecords, addQCRecord, currentUser, setActiveQCRecord, setView, samplingRules } = useAppStore();
+    const { qcRecords, addQCRecord, currentUser, setView, setActiveQCRecord } = useAppStore();
     const [loading, setLoading] = useState(false);
     const [selectedSourceKeys, setSelectedSourceKeys] = useState<React.Key[]>([]);
 
-    // If initialTab is provided, use it. Otherwise default based on role.
-    // Note: Tabs component from Antd is controlled if activeKey is passed, or uncontrolled if defaultActiveKey is passed.
-    // Since we rely on routing to switch tabs now, using defaultActiveKey with a key prop on the component 
-    // (in App.tsx) works best to force re-render, OR we can use State.
-    // Let's use a key in App.tsx to reset the component instance when switching views, 
-    // effectively making defaultActiveKey work. This is the simplest approach for now.
-    const defaultKey = initialTab || (currentUser.role === 'Staff' ? 'my-tasks' : 'inbox');
+    if (!currentUser) return null;
 
-    const isManager = ['Admin', 'M1', 'M2'].includes(currentUser.role);
-    const isStaff = currentUser.role === 'Staff';
+    const roles = currentUser.roles.map(r => r.roleName);
+    const isManager = roles.some(r => ['Admin', 'M1', 'M2'].includes(r));
+    const isStaff = roles.includes('Staff');
 
     // -- Filter Records --
-    // Inbox: Pending QC
     const inboxData = qcRecords.filter(r => r.status === 'Pending QC');
-
-    // Outbox: Wait Staff Confirm (Removed 'Completed' from here)
     const outboxData = qcRecords.filter(r => r.status === 'Wait Staff Confirm');
-
-    // History: Completed
     const historyData = qcRecords.filter(r => r.status === 'Completed');
-
-    // Dispute Box
     const disputeData = qcRecords.filter(r => r.status === 'Dispute');
-
-    // Draft Box
     const draftData = qcRecords.filter(r => r.status === 'Draft');
-
-    // Staff My Tasks
     const myTasksData = qcRecords.filter(r => (r.status === 'Wait Staff Confirm' || r.status === 'Dispute') && r.agentId === currentUser.id);
 
     const handleNavigateToDetail = (record: QCRecord) => {
@@ -70,7 +54,6 @@ const SamplingPage: React.FC<SamplingPageProps> = ({ initialTab }) => {
         setView('qc-detail');
     };
 
-    // -- Actions --
     const handleAddSample = () => {
         if (selectedSourceKeys.length === 0) {
             message.warning('Please select records to sample');
@@ -83,12 +66,12 @@ const SamplingPage: React.FC<SamplingPageProps> = ({ initialTab }) => {
                 return {
                     id: `qc-new-${Date.now()}-${k}`,
                     caseId: src.caseId,
-                    agentId: 'u1',
+                    agentId: 'user-staff-id', // Use a real mock user ID
                     agentName: src.agentName,
                     qcType: src.qcType,
                     type: 'Manual Sample',
                     date: new Date().toISOString().split('T')[0],
-                    status: 'Pending QC',
+                    status: 'Pending QC' as const,
                 };
             });
             newRecords.forEach(r => addQCRecord(r));
@@ -104,12 +87,12 @@ const SamplingPage: React.FC<SamplingPageProps> = ({ initialTab }) => {
             const newRecords: QCRecord[] = Array.from({ length: 3 }).map((_, i) => ({
                 id: `random-${Date.now()}-${i}`,
                 caseId: `RND-${Date.now()}-${i}`,
-                agentId: 'u1',
+                agentId: 'user-staff-id',
                 agentName: 'Alice Staff',
                 qcType: Math.random() > 0.5 ? 'Call' : 'Data',
                 type: 'Random Sample',
                 date: new Date().toISOString().split('T')[0],
-                status: 'Pending QC',
+                status: 'Pending QC' as const,
             }));
             newRecords.forEach(r => addQCRecord(r));
             setLoading(false);
@@ -117,7 +100,7 @@ const SamplingPage: React.FC<SamplingPageProps> = ({ initialTab }) => {
         }, 1000);
     };
 
-    // -- Columns --
+    // Columns
     const qcColumns: ColumnsType<QCRecord> = [
         {
             title: 'Case ID',
@@ -136,7 +119,6 @@ const SamplingPage: React.FC<SamplingPageProps> = ({ initialTab }) => {
             key: 'qcType',
             render: (t) => <Tag color={t === 'Call' ? 'cyan' : 'blue'}>{t}</Tag>
         },
-        { title: 'Type', dataIndex: 'type', key: 'type' },
         { title: 'Date', dataIndex: 'date', key: 'date' },
         {
             title: 'Status',
@@ -171,18 +153,18 @@ const SamplingPage: React.FC<SamplingPageProps> = ({ initialTab }) => {
                 <div className="space-y-4">
                     <div className="flex justify-between items-center mb-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
                         <Space>
-                            <span className="font-semibold">Sampling Mode:</span>
-                            <Select defaultValue="manual" style={{ width: 120 }}>
-                                <Option value="manual">Manual Pick</Option>
-                                <Option value="random">Random Rule</Option>
+                            <span className="font-semibold text-gray-700">Sampling Mode:</span>
+                            <Select defaultValue="manual" style={{ width: 140 }}>
+                                <Option value="manual">Manual Selection</Option>
+                                <Option value="random">Random Sampling</Option>
                             </Select>
                         </Space>
                         <Space>
-                            <Button onClick={handleAddSample} disabled={selectedSourceKeys.length === 0}>
-                                Add Selected to Inbox
+                            <Button onClick={handleAddSample} disabled={selectedSourceKeys.length === 0} type="dashed">
+                                Process Selected ({selectedSourceKeys.length})
                             </Button>
-                            <Button type="primary" onClick={handleRandomSample} loading={loading} icon={<ReloadOutlined />}>
-                                Auto Sample (Run Rules)
+                            <Button type="primary" onClick={handleRandomSample} loading={loading} icon={<ReloadOutlined />} className="bg-green-600 hover:bg-green-700">
+                                Run Auto-Sample Rules
                             </Button>
                         </Space>
                     </div>
@@ -190,10 +172,10 @@ const SamplingPage: React.FC<SamplingPageProps> = ({ initialTab }) => {
                     <Table
                         dataSource={mockSourceData}
                         columns={[
-                            { title: 'Case ID', dataIndex: 'caseId' },
+                            { title: 'Case ID', dataIndex: 'caseId', className: 'font-mono' },
                             { title: 'Agent', dataIndex: 'agentName' },
-                            { title: 'Type', dataIndex: 'qcType', render: t => <Tag>{t}</Tag> },
-                            { title: 'Date', dataIndex: 'date' },
+                            { title: 'Type', dataIndex: 'qcType', render: t => <Tag color={t === 'Call' ? 'cyan' : 'blue'}>{t}</Tag> },
+                            { title: 'Timestamp', dataIndex: 'date' },
                         ]}
                         rowSelection={{
                             selectedRowKeys: selectedSourceKeys,
@@ -201,45 +183,45 @@ const SamplingPage: React.FC<SamplingPageProps> = ({ initialTab }) => {
                         }}
                         pagination={{ pageSize: 5 }}
                         size="small"
-                        title={() => 'Source Data Pool'}
+                        title={() => <span className="font-semibold text-gray-600">Available Source Data</span>}
+                        className="border rounded-lg overflow-hidden shadow-sm"
                     />
                 </div>
             )
         },
         {
             key: 'inbox',
-            label: <Badge count={inboxData.length} offset={[10, 0]}><span><AuditOutlined /> Inbox (To QC)</span></Badge>,
-            children: <Table dataSource={inboxData} columns={qcColumns} rowKey="id" />
+            label: <Badge count={inboxData.length} offset={[10, 0]}><span><AuditOutlined /> Inbox</span></Badge>,
+            children: <Table dataSource={inboxData} columns={qcColumns} rowKey="id" className="border rounded-lg shadow-sm" />
         },
         {
             key: 'drafts',
-            label: <Badge count={draftData.length} offset={[10, 0]} color="purple"><span><EditOutlined /> Draft Box</span></Badge>,
-            children: <Table dataSource={draftData} columns={qcColumns} rowKey="id" locale={{ emptyText: 'No drafts found' }} />
+            label: <Badge count={draftData.length} offset={[10, 0]} color="purple"><span><EditOutlined /> Drafts</span></Badge>,
+            children: <Table dataSource={draftData} columns={qcColumns} rowKey="id" locale={{ emptyText: 'No draft cases' }} className="border rounded-lg shadow-sm" />
         },
         {
             key: 'outbox',
-            label: <span><CheckCircleOutlined /> Outbox (Wait Confirm)</span>,
-            children: <Table dataSource={outboxData} columns={qcColumns} rowKey="id" />
+            label: <span><CheckCircleOutlined /> Outbox</span>,
+            children: <Table dataSource={outboxData} columns={qcColumns} rowKey="id" className="border rounded-lg shadow-sm" />
         },
         {
             key: 'dispute',
-            label: <Badge count={disputeData.length} offset={[10, 0]} color="red"><span><ExclamationCircleOutlined /> Dispute Box</span></Badge>,
-            children: <Table dataSource={disputeData} columns={qcColumns} rowKey="id" />
+            label: <Badge count={disputeData.length} offset={[10, 0]} color="red"><span><ExclamationCircleOutlined /> Disputes</span></Badge>,
+            children: <Table dataSource={disputeData} columns={qcColumns} rowKey="id" className="border rounded-lg shadow-sm" />
         },
         {
             key: 'history',
-            label: <span><HistoryOutlined /> History (Completed)</span>,
-            children: <Table dataSource={historyData} columns={qcColumns} rowKey="id" />
+            label: <span><HistoryOutlined /> History</span>,
+            children: <Table dataSource={historyData} columns={qcColumns} rowKey="id" className="border rounded-lg shadow-sm" />
         }] : []),
 
         ...(isStaff ? [{
             key: 'my-tasks',
-            label: <Badge count={myTasksData.length} offset={[10, 0]}><span><AuditOutlined /> My QC Actions</span></Badge>,
-            children: <Table dataSource={myTasksData} columns={qcColumns} rowKey="id" />
+            label: <Badge count={myTasksData.length} offset={[10, 0]}><span><AuditOutlined /> My Actions</span></Badge>,
+            children: <Table dataSource={myTasksData} columns={qcColumns} rowKey="id" className="border rounded-lg shadow-sm" />
         }] : [])
     ];
 
-    // -- Sync Tab with Sidebar --
     const handleTabChange = (key: string) => {
         const viewMap: Record<string, string> = {
             'sampling': 'qc-sampling',
@@ -251,18 +233,26 @@ const SamplingPage: React.FC<SamplingPageProps> = ({ initialTab }) => {
             'my-tasks': 'my-qc-action'
         };
         const targetView = viewMap[key];
-        if (targetView) {
-            setView(targetView);
-        }
+        if (targetView) setView(targetView);
     };
 
-    // Determine active tab: prefer prop (controlled), fallback to role default
-    const activeKey = initialTab || (currentUser.role === 'Staff' ? 'my-tasks' : 'inbox');
+    const activeKey = initialTab || (isStaff ? 'my-tasks' : 'inbox');
 
     return (
-        <Card bordered={false} className="shadow-sm">
-            <Tabs activeKey={activeKey} items={items} onChange={handleTabChange} />
-        </Card>
+        <div className="space-y-4">
+            <div className="flex items-center gap-3 px-1">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                    <FileProtectOutlined className="text-xl text-blue-600" />
+                </div>
+                <div>
+                    <h2 className="text-xl font-bold text-gray-800">Quality Control Hub</h2>
+                    <p className="text-gray-500 text-sm">Manage cases through the full sampling and review lifecycle.</p>
+                </div>
+            </div>
+            <Card bordered={false} className="shadow-md rounded-xl">
+                <Tabs activeKey={activeKey} items={items} onChange={handleTabChange} className="px-2" />
+            </Card>
+        </div>
     );
 };
 

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import 'dayjs/locale/zh-cn';
@@ -7,8 +6,6 @@ import Workspace from './pages/Workspace';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import SamplingPage from './pages/QC/SamplingPage';
 import QCDetail from './pages/QC/QCDetail';
-import StaffConfirmation from './pages/QC/StaffConfirmation';
-import DisputeResolution from './pages/QC/DisputeResolution';
 import TeamManagement from './pages/System/TeamManagement';
 import DevPlanPage from './pages/DevelopmentPlan/DevPlanPage';
 import LeaderLogPage from './pages/LeaderLog/LeaderLogPage';
@@ -52,11 +49,11 @@ function App() {
       //   return <DisputeResolution />;
       case 'team':
       case 'team-structure':
-        return <TeamManagement initialTab="structure" />;
+        return <TeamManagement initialTab="users" />;
       case 'role-mgmt':
         return <TeamManagement initialTab="roles" />;
       case 'access-mgmt':
-        return <TeamManagement initialTab="access" />;
+        return <TeamManagement initialTab="process" />;
       case 'sampling-rules':
         return <TeamManagement initialTab="rules" />;
       case 'dev-plan':
