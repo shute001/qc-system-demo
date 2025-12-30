@@ -259,7 +259,7 @@ paths:
           schema:
             type: integer
             default: 1
-        - name: pageSize
+        - name: size
           in: query
           description: "Page size"
           schema:
@@ -597,6 +597,96 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /api/v1/audit/list:
+    get:
+      tags:
+        - Audit
+      summary: List audit logs
+      description: Get paginated audit logs with filtering
+      x-permission: "system:audit:list"
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: staffId
+          in: query
+          schema:
+            type: string
+        - name: module
+          in: query
+          schema:
+            type: string
+        - name: operation
+          in: query
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Paginated logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageAuditResponse'
+
+  /api/v1/audit/options:
+    get:
+      tags:
+        - Audit
+      summary: Get audit filter options
+      description: Get unique modules and operations for filters
+      responses:
+        '200':
+          description: Unique options
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  modules:
+                    type: array
+                    items:
+                      type: string
+                  operations:
+                    type: array
+                    items:
+                      type: string
+
+  /api/v1/audit/{id}:
+    get:
+      tags:
+        - Audit
+      summary: Get audit detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Log detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogResponse'
+
 components:
   schemas:
     UserResponse:
@@ -842,6 +932,73 @@ components:
         bizName:
           type: string
         status:
+          type: integer
+
+    AuditLogResponse:
+      type: object
+      example:
+        id: 40
+        staffId: "admin"
+        staffName: "System Administrator"
+        apiPath: "/api/v1/user/bbac1131-1d59-44c3-b8c3-bdd2ec2427a2"
+        method: "DELETE"
+        module: "USER"
+        operation: "Delete User"
+        params: "{\"id\":\"bbac1131-1d59-44c3-b8c3-bdd2ec2427a2\"}"
+        oldValue: "{\"Staff Id\":\"103\",\"Staff Name\":\"test\",\"Email\":\"N/A\",\"Status\":\"1\",\"Manager ID\":\"115f3525-cfb6-406b-87af-2f0cd27b29e3\",\"Roles\":\"[Staff]\",\"Processes\":\"[THH Line]\"}"
+        changedValue: "[{\"field\":\"Staff Id\",\"old\":\"103\",\"new\":\"N/A\"},{\"field\":\"Staff Name\",\"old\":\"test\",\"new\":\"N/A\"},{\"field\":\"Email\",\"old\":\"N/A\",\"new\":\"N/A\"},{\"field\":\"Status\",\"old\":\"1\",\"new\":\"N/A\"},{\"field\":\"Manager ID\",\"old\":\"115f3525-cfb6-406b-87af-2f0cd27b29e3\",\"new\":\"N/A\"},{\"field\":\"Roles\",\"old\":\"[Staff]\",\"new\":\"N/A\"},{\"field\":\"Processes\",\"old\":\"[THH Line]\",\"new\":\"N/A\"}]"
+        status: 1
+        errorMsg: null
+        ipAddress: "127.0.0.1"
+        createdAt: "2025-12-30T17:19:53.382142"
+      properties:
+        id:
+          type: integer
+        staffId:
+          type: string
+        staffName:
+          type: string
+        apiPath:
+          type: string
+        method:
+          type: string
+        module:
+          type: string
+        operation:
+          type: string
+        params:
+          type: string
+          description: "JSON string of request params"
+        oldValue:
+          type: string
+          description: "JSON string of old snapshot"
+        changedValue:
+          type: string
+          description: "JSON array of diff objects"
+        status:
+          type: integer
+        errorMsg:
+          type: string
+        ipAddress:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    PageAuditResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLogResponse'
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        size:
+          type: integer
+        number:
           type: integer
 
     PageUserResponse:
