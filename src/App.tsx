@@ -54,6 +54,8 @@ function App() {
         return <TeamManagement initialTab="roles" />;
       case 'access-mgmt':
         return <TeamManagement initialTab="process" />;
+      case 'audit-log':
+        return <TeamManagement initialTab="audit" />;
       case 'sampling-rules':
         return <TeamManagement initialTab="rules" />;
       case 'dev-plan':

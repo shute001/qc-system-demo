@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, Card } from 'antd';
-import { UserOutlined, SafetyCertificateOutlined, SettingOutlined } from '@ant-design/icons';
+import { UserOutlined, SafetyCertificateOutlined, SettingOutlined, HistoryOutlined } from '@ant-design/icons';
+import type { Role } from '../../store/useAppStore';
 import { useAppStore } from '../../store/useAppStore';
 import { UserManagement } from './UserManagement';
 import { RoleManagement } from './RoleManagement';
 import { ProcessManagement } from './ProcessManagement';
+import AuditLogPage from './AuditLog';
 
 const { TabPane } = Tabs;
 
@@ -19,7 +21,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ initialTab = 'users' })
     const canAccess = (perm: string): boolean => {
         if (!currentUser) return false;
         // Search through all roles for the permission
-        return currentUser.roles.some(role => {
+        return currentUser.roles.some((role: Role) => {
             // Check if any menu in allMenus that matches the perm is in the role's menuIds
             // Actually, a simpler way in demo is checking role names or specific permission strings if we mapped them
             // But let's simulate a more robust check:
@@ -29,6 +31,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ initialTab = 'users' })
             if (perm === 'users' && (role.roleName === 'Admin' || role.roleName === 'M1' || role.roleName === 'LM')) return true;
             if (perm === 'roles' && role.roleName === 'Admin') return true;
             if (perm === 'processes' && (role.roleName === 'Admin' || role.roleName === 'M1')) return true;
+            if (perm === 'audit' && (role.roleName === 'Admin')) return true;
             return false;
         });
     };
@@ -36,6 +39,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ initialTab = 'users' })
     const canViewUsers = canAccess('users');
     const canViewRoles = canAccess('roles');
     const canViewProcesses = canAccess('processes');
+    const canViewAudit = canAccess('audit');
 
     const [activeTab, setActiveTab] = useState(initialTab);
 
@@ -50,14 +54,24 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ initialTab = 'users' })
         } else if (activeTab === 'process' && !canViewProcesses) {
             if (canViewUsers) setActiveTab('users');
             else if (canViewRoles) setActiveTab('roles');
+            else if (canViewAudit) setActiveTab('audit');
+        } else if (activeTab === 'audit' && !canViewAudit) {
+            if (canViewUsers) setActiveTab('users');
+            else if (canViewRoles) setActiveTab('roles');
+            else if (canViewProcesses) setActiveTab('process');
         }
     }, [currentUser]);
+
+    useEffect(() => {
+        setActiveTab(initialTab);
+    }, [initialTab]);
 
     const handleTabChange = (key: string) => {
         const viewMap: Record<string, string> = {
             'users': 'team-structure',
             'roles': 'role-mgmt',
-            'process': 'access-mgmt'
+            'process': 'access-mgmt',
+            'audit': 'audit-log'
         };
         const targetView = viewMap[key];
         if (targetView) {
@@ -66,7 +80,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ initialTab = 'users' })
         setActiveTab(key);
     };
 
-    if (!canViewUsers && !canViewRoles && !canViewProcesses) {
+    if (!canViewUsers && !canViewRoles && !canViewProcesses && !canViewAudit) {
         return <div className="p-6">Access Denied: No System Management permissions found for your role.</div>;
     }
 
@@ -99,6 +113,12 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ initialTab = 'users' })
                     {canViewProcesses && (
                         <TabPane tab={<span className="flex items-center gap-2"><SettingOutlined />Process Management</span>} key="process">
                             <ProcessManagement />
+                        </TabPane>
+                    )}
+
+                    {canViewAudit && (
+                        <TabPane tab={<span className="flex items-center gap-2"><HistoryOutlined />Audit Log</span>} key="audit">
+                            <AuditLogPage />
                         </TabPane>
                     )}
                 </Tabs>

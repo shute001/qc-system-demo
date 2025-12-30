@@ -15,8 +15,9 @@ import {
     LogoutOutlined,
     SafetyCertificateOutlined,
     DashboardOutlined,
+    HistoryOutlined,
 } from '@ant-design/icons';
-import { useAppStore, type SysMenu, type User } from '../store/useAppStore';
+import { useAppStore, type SysMenu } from '../store/useAppStore';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -34,6 +35,7 @@ const IconMap: Record<string, React.ReactNode> = {
     ScheduleOutlined: <ScheduleOutlined />,
     BookOutlined: <BookOutlined />,
     SafetyCertificateOutlined: <SafetyCertificateOutlined />,
+    HistoryOutlined: <HistoryOutlined />,
 };
 
 interface MainLayoutProps {
@@ -60,6 +62,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, currentView, onNaviga
         if (path.includes('team-structure') || path.includes('team')) return <UserOutlined />;
         if (path.includes('role-mgmt') || path.includes('role')) return <SafetyCertificateOutlined />;
         if (path.includes('access') || path.includes('process')) return <SettingOutlined />;
+        if (path.includes('audit')) return <HistoryOutlined />;
         return undefined;
     };
 

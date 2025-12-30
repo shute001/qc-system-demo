@@ -97,7 +97,24 @@ export interface LeaderLog {
     actionItems: string;
 }
 
-interface AppState {
+export interface AuditLog {
+    id: number;
+    staffId: string;
+    staffName: string;
+    apiPath: string;
+    method: string;
+    module: string;
+    operation: string;
+    params: string;
+    oldValue: string | null;
+    changedValue: string;
+    status: number;
+    errorMsg: string | null;
+    ipAddress: string;
+    createdAt: string;
+}
+
+export interface AppState {
     currentUser: User | null;
     setCurrentUser: (user: User) => void;
     switchUser: (staffId: string) => void;
@@ -111,6 +128,9 @@ interface AppState {
     qcRecords: QCRecord[];
     devPlans: DevPlan[];
     leaderLogs: LeaderLog[];
+    auditLogs: AuditLog[];
+    auditModules: string[];
+    auditOperations: string[];
 
     // Actions
     addQCRecord: (record: QCRecord) => void;
@@ -119,6 +139,10 @@ interface AppState {
     updateDevPlan: (id: string, updates: Partial<DevPlan>) => void;
     addLeaderLog: (log: LeaderLog) => void;
     updateLeaderLog: (id: string, updates: Partial<LeaderLog>) => void;
+
+    // Audit Actions
+    fetchAuditLogs: (query: any) => { content: AuditLog[], totalElements: number };
+    fetchAuditOptions: () => { modules: string[], operations: string[] };
 
     // System Actions
     addUser: (user: User) => void;
@@ -151,6 +175,7 @@ const mockMenus: SysMenu[] = [
     { menuId: 21, menuName: 'User Management', parentId: 20, sortOrder: 1, path: 'team-structure', component: 'System/TeamManagement', menuType: 'C', visible: 1 },
     { menuId: 22, menuName: 'Role Management', parentId: 20, sortOrder: 2, path: 'role-mgmt', component: 'System/RoleManagement', menuType: 'C', visible: 1 },
     { menuId: 23, menuName: 'Process Management', parentId: 20, sortOrder: 3, path: 'access-mgmt', component: 'System/ProcessManagement', menuType: 'C', visible: 1 },
+    { menuId: 24, menuName: 'Audit Log', parentId: 20, sortOrder: 4, path: 'audit-log', component: 'System/AuditLog', menuType: 'C', visible: 1 },
 
     { menuId: 30, menuName: 'Coaching', parentId: 0, sortOrder: 6, path: 'dev', menuType: 'D', icon: 'TeamOutlined', visible: 1 },
     { menuId: 31, menuName: 'Monthly Plan', parentId: 30, sortOrder: 1, path: 'dev-plan', component: 'DevelopmentPlan/DevPlanPage', menuType: 'C', visible: 1 },
@@ -168,7 +193,7 @@ const mockRoles: Role[] = [
         roleName: 'Admin',
         roleDesc: 'Full system management',
         status: 1,
-        menuIds: [...mockMenus.map(m => m.menuId)]
+        menuIds: [1, 2, 3, 10, 11, 12, 13, 20, 21, 22, 23, 24, 30, 31, 32, 211, 212, 213]
     },
     {
         roleId: 'role-m1',
@@ -252,6 +277,89 @@ const mockUsers: User[] = [
     }
 ];
 
+const mockAuditLogs: AuditLog[] = [
+    {
+        id: 40,
+        staffId: "admin",
+        staffName: "System Administrator",
+        apiPath: "/api/v1/user/bbac1131-1d59-44c3-b8c3-bdd2ec2427a2",
+        method: "DELETE",
+        module: "USER",
+        operation: "Delete User",
+        params: "{\"id\":\"bbac1131-1d59-44c3-b8c3-bdd2ec2427a2\"}",
+        oldValue: "{\"Staff Id\":\"103\",\"Staff Name\":\"test\",\"Email\":\"N/A\",\"Status\":\"1\",\"Manager ID\":\"115f3525-cfb6-406b-87af-2f0cd27b29e3\",\"Roles\":\"[Staff]\",\"Processes\":\"[THH Line]\"}",
+        changedValue: "[{\"field\":\"Staff Id\",\"old\":\"103\",\"new\":\"N/A\"},{\"field\":\"Staff Name\",\"old\":\"test\",\"new\":\"N/A\"},{\"field\":\"Email\",\"old\":\"N/A\",\"new\":\"N/A\"},{\"field\":\"Status\",\"old\":\"1\",\"new\":\"N/A\"},{\"field\":\"Manager ID\",\"old\":\"115f3525-cfb6-406b-87af-2f0cd27b29e3\",\"new\":\"N/A\"},{\"field\":\"Roles\",\"old\":\"[Staff]\",\"new\":\"N/A\"},{\"field\":\"Processes\",\"old\":\"[THH Line]\",\"new\":\"N/A\"}]",
+        status: 1,
+        errorMsg: null,
+        ipAddress: "127.0.0.1",
+        createdAt: "2025-12-30T17:19:53.382142"
+    },
+    {
+        id: 39,
+        staffId: "admin",
+        staffName: "System Administrator",
+        apiPath: "/api/v1/user",
+        method: "POST",
+        module: "USER",
+        operation: "Create User",
+        params: "{\"request\":{\"staffId\":\"103\",\"name\":\"test\",\"roles\":[\"e0b90fee-816f-40d5-8478-99a8c2d1690c\"],\"lineManagerId\":\"115f3525-cfb6-406b-87af-2f0cd27b29e3\",\"processes\":[\"10f11e5d-7f1d-47c9-b40a-98363b416acf\"],\"status\":1}}",
+        oldValue: null,
+        changedValue: "[{\"field\":\"Staff Id\",\"old\":\"N/A\",\"new\":\"103\"},{\"field\":\"Staff Name\",\"old\":\"N/A\",\"new\":\"test\"},{\"field\":\"Email\",\"old\":\"N/A\",\"new\":\"N/A\"},{\"field\":\"Status\",\"old\":\"N/A\",\"new\":\"1\"},{\"field\":\"Manager ID\",\"old\":\"N/A\",\"new\":\"115f3525-cfb6-406b-87af-2f0cd27b29e3\"},{\"field\":\"Roles\",\"old\":\"N/A\",\"new\":\"[Staff]\"},{\"field\":\"Processes\",\"old\":\"N/A\",\"new\":\"[THH Line]\"}]",
+        status: 1,
+        errorMsg: null,
+        ipAddress: "127.0.0.1",
+        createdAt: "2025-12-30T17:19:47.417794"
+    },
+    {
+        id: 37,
+        staffId: "admin",
+        staffName: "System Administrator",
+        apiPath: "/api/v1/user/bc94c93e-5920-47fe-a54a-30994e39edda",
+        method: "PUT",
+        module: "USER",
+        operation: "Update User",
+        params: "{\"request\":{\"staffId\":\"100\",\"name\":\"henry ma\",\"roles\":[\"7336f8f7-d06f-45a7-9a4e-d6884e831d0c\"],\"lineManagerId\":null,\"processes\":[{\"id\":\"8db9f1ec-e1f8-4876-93a2-a83ba67fda53\",\"procName\":\"fraud process\"}],\"status\":1},\"id\":\"bc94c93e-5920-47fe-a54a-30994e39edda\"}",
+        oldValue: "{\"Staff Id\":\"100\",\"Staff Name\":\"henry ma\",\"Email\":\"henry@qc.io\",\"Status\":\"1\",\"Manager ID\":null,\"Roles\":\"[LM, M1]\",\"Processes\":\"[THH Line]\"}",
+        changedValue: "[{\"field\":\"Roles\",\"old\":\"[LM, M1]\",\"new\":\"[LM]\"},{\"field\":\"Processes\",\"old\":\"[THH Line]\",\"new\":\"[fraud process]\"}]",
+        status: 1,
+        errorMsg: null,
+        ipAddress: "127.0.0.1",
+        createdAt: "2025-12-30T15:13:10.895243"
+    },
+    {
+        id: 35,
+        staffId: "admin",
+        staffName: "System Administrator",
+        apiPath: "/api/v1/process",
+        method: "POST",
+        module: "PROCESS",
+        operation: "Create Process",
+        params: "{\"businessId\":\"biz-1\",\"procAid\":\"P001\",\"procName\":\"New Process\",\"qltyTarget\":98,\"status\":1}",
+        oldValue: null,
+        changedValue: "[{\"field\":\"Process Code\",\"old\":\"N/A\",\"new\":\"COL -- P001 -- New Process\"},{\"field\":\"Process Name\",\"old\":\"N/A\",\"new\":\"New Process\"},{\"field\":\"Quality Target\",\"old\":\"N/A\",\"new\":\"98\"}]",
+        status: 1,
+        errorMsg: null,
+        ipAddress: "127.0.0.1",
+        createdAt: "2025-12-30T15:08:00.000000"
+    },
+    {
+        id: 34,
+        staffId: "admin",
+        staffName: "System Administrator",
+        apiPath: "/api/v1/process",
+        method: "POST",
+        module: "PROCESS",
+        operation: "Create Process",
+        params: "{\"businessId\":\"biz-1\",\"procAid\":\"P002\",\"procName\":\"Failed Process\",\"qltyTarget\":90,\"status\":1}",
+        oldValue: null,
+        changedValue: "[]",
+        status: 0,
+        errorMsg: "Internal Server Error: Database connection timeout",
+        ipAddress: "127.0.0.1",
+        createdAt: "2025-12-30T14:54:16.000000"
+    }
+];
+
 const initialQCRecords: QCRecord[] = [
     {
         id: 'qc-1',
@@ -294,7 +402,7 @@ const initialDevPlans: DevPlan[] = [
     }
 ];
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
     currentUser: mockUsers[0],
     setCurrentUser: (user) => set({ currentUser: user }),
     switchUser: (staffId) => set((state) => ({
@@ -312,6 +420,9 @@ export const useAppStore = create<AppState>((set) => ({
     qcRecords: initialQCRecords,
     devPlans: initialDevPlans,
     leaderLogs: [],
+    auditLogs: mockAuditLogs,
+    auditModules: ["USER", "ROLE", "PROCESS"],
+    auditOperations: ["Create User", "Update User", "Delete User", "Create Process", "Update Role"],
 
     addQCRecord: (record) => set((state) => ({ qcRecords: [...state.qcRecords, record] })),
     updateQCRecord: (id, updates) => set((state) => ({
@@ -325,6 +436,33 @@ export const useAppStore = create<AppState>((set) => ({
     updateLeaderLog: (id, updates) => set((state) => ({
         leaderLogs: state.leaderLogs.map(l => l.id === id ? { ...l, ...updates } : l)
     })),
+
+    fetchAuditLogs: (query) => {
+        const state = get();
+        let filtered = [...state.auditLogs];
+
+        if (query.staffId) {
+            filtered = filtered.filter(l => l.staffId.includes(query.staffId));
+        }
+        if (query.module) {
+            filtered = filtered.filter(l => l.module === query.module);
+        }
+        if (query.operation) {
+            filtered = filtered.filter(l => l.operation === query.operation);
+        }
+
+        return {
+            content: filtered.slice(query.page * query.size, (query.page + 1) * query.size),
+            totalElements: filtered.length
+        };
+    },
+    fetchAuditOptions: () => {
+        const state = get();
+        return {
+            modules: state.auditModules,
+            operations: state.auditOperations
+        };
+    },
 
     addUser: (user) => set((state) => ({ allUsers: [...state.allUsers, user] })),
     updateUser: (id, updates) => set((state) => ({
